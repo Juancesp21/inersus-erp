@@ -18,7 +18,6 @@
         <span class="pill">⌀ {{ kit.diam }}"</span>
         <span class="pill">Desc. {{ kit.sal }}</span>
         <span class="pill">CDT máx. {{ kit.cdtMax }}m</span>
-        <span class="pill" :class="margen >= 20 ? 'margen' : 'margen-low'" v-if="margen !== null">Margen ~{{ margen }}%</span>
       </div>
     </div>
 
@@ -36,7 +35,6 @@
       </div>
     </div>
 
-    <!-- DESGLOSE ACCESORIOS -->
     <div class="desglose" v-if="tieneAccesorios">
       <div class="desglose-title">Accesorios del proyecto</div>
       <div class="desglose-row" v-if="extras.costoCable > 0">
@@ -44,7 +42,7 @@
         <span class="mono">${{ extras.costoCable.toLocaleString('es-MX') }}</span>
       </div>
       <div class="desglose-row" v-if="extras.costoTuberia > 0">
-        <span>Tubería {{ extras.tuberiaTramos }} tramos × 3m ({{ extras.diametro }}" Serie {{ extras.tuberiaSerie }})</span>
+        <span>Tubería {{ extras.tuberiaTramos }} tramos × 3m · {{ extras.diametro }}" Serie {{ extras.tuberiaSerie }}</span>
         <span class="mono">${{ extras.costoTuberia.toLocaleString('es-MX') }}</span>
       </div>
       <div class="desglose-row" v-if="extras.costoAdaptador > 0">
@@ -63,6 +61,11 @@
         <span>Total del proyecto</span>
         <span class="mono">${{ totalProyecto.toLocaleString('es-MX') }}</span>
       </div>
+    </div>
+
+    <div class="total-proyecto" v-else>
+      <span>Total del proyecto</span>
+      <span class="mono">${{ totalProyecto.toLocaleString('es-MX') }}</span>
     </div>
 
     <div class="resumen-box" :class="{ copied }" @click="copiar" title="Clic para copiar">
@@ -95,7 +98,7 @@ const tieneAccesorios = computed(() => {
 const totalProyecto = computed(() => {
   const e = props.extras
   if (!e) return props.kit.precio
-  return props.kit.precio + e.costoCable + e.costoTuberia + e.costoAdaptador + e.costoValvula + e.bases
+  return props.kit.precio + (e.costoCable||0) + (e.costoTuberia||0) + (e.costoAdaptador||0) + (e.costoValvula||0) + (e.bases||0)
 })
 
 const resumen = computed(() => {

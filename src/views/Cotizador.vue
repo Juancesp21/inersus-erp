@@ -62,7 +62,6 @@
             <input type="number" v-model.number="form.cmts" min="10" max="400" step="5"/>
             <span class="hint">Sugerido: {{ cableSugerido }}m</span>
           </div>
-
           <div class="field">
             <label>Tubería de columna</label>
             <select v-model="form.tuberia">
@@ -79,9 +78,9 @@
               </select>
             </div>
             <div class="field">
-              <label>Tramos de tubería (c/u 3m)</label>
+              <label>Tramos (c/u 3m)</label>
               <input type="number" v-model.number="form.tuberiaTramos" min="1" max="200"/>
-              <span class="hint">Sugerido: {{ tramosSugeridos }}  tramos ({{ tramosSugeridos * 3 }}m)</span>
+              <span class="hint">Sugerido: {{ tramosSugeridosVal }} tramos ({{ tramosSugeridosVal * 3 }}m)</span>
             </div>
             <div class="field">
               <label>Adaptador de tubería</label>
@@ -99,7 +98,6 @@
               </select>
             </div>
           </template>
-
           <div class="field">
             <label>Bases inclinadas</label>
             <select v-model.number="form.bases">
@@ -116,31 +114,35 @@
     </aside>
 
     <main class="panel-right">
-      <div class="empty" v-if="!resultados.length && !calculado">
+      <div class="empty" v-if="!todasOpciones.length && !calculado">
         <p>Ingresa los parámetros y presiona <strong>Calcular</strong></p>
       </div>
-      <div v-else-if="!resultados.length && calculado">
+      <div v-else-if="!todasOpciones.length && calculado">
         <p>Sin resultados para CDT = {{ cdtData.cdt.toFixed(1) }}m</p>
       </div>
       <div v-else>
         <div class="rh">
           <h2>Resultados — CDT: {{ cdtData.cdt.toFixed(1) }} m</h2>
-          <span>{{ resultados.length }} opciones</span>
+          <span>{{ todasOpciones.length }} opciones compatibles</span>
         </div>
         <div class="kgrid">
           <KitCard
-            v-for="(kit, i) in resultados"
+            v-for="(kit, i) in opcionesVisibles"
             :key="kit.id"
             :kit="kit"
             :rank="i"
-            :label="labels[i]"
+            :label="kit.label"
             :cdt="cdtData.cdt"
             :caudales="kit.caudales"
-            :margen="kit.margen"
             :extras="kit.extras"
             :params="{ nd: form.nd, dt: form.dt, tirada: form.tirada }"
             @guardar="guardar"
           />
+        </div>
+        <div class="mas-opciones" v-if="hayMas">
+          <button class="btn-mas" @click="mostrarMas = !mostrarMas">
+            {{ mostrarMas ? 'Mostrar menos' : `Mostrar más opciones (${opcionesExtra.length})` }}
+          </button>
         </div>
       </div>
     </main>
@@ -151,14 +153,15 @@
 import { ref, computed, onMounted } from 'vue'
 import KitCard from '../components/KitCard.vue'
 import { getKits, saveCotizacion } from '../models/kits.js'
-import { calcularCDT, sugerirCable, flujoEnCDT, calcularCaudales, calcularMargen } from '../controllers/cdt.js'
+import { calcularCDT, sugerirCable, flujoEnCDT, calcularCaudales } from '../controllers/cdt.js'
 import {
   calcularCostoCable, calcularCostoTuberia, calcularCostoAdaptador,
-  calcularCostoValvula, calcularTotalProyecto, seleccionarOpciones, tramosSugeridos
+  calcularCostoValvula, calcularTotalProyecto, tramosSugeridos
 } from '../controllers/precios.js'
 
 const form = ref({
-  cliente: '', ciudad: 'Monterrey, NL', asesor: localStorage.getItem('ins_asesor') || 'Ing. Miguel González',
+  cliente: '', ciudad: 'Monterrey, NL',
+  asesor: localStorage.getItem('ins_asesor') || 'Ing. Miguel González',
   nd: 40, dt: 10, tirada: 50, presion: 0,
   ctipo: 'CABLE3X12A', cmts: 95, bases: 0,
   tuberia: 'no', tuberiaSerie: '150', tuberiaTramos: 14,
@@ -166,10 +169,10 @@ const form = ref({
 })
 
 const kits = ref([])
-const resultados = ref([])
+const todasOpciones = ref([])
 const calculado = ref(false)
 const cargando = ref(true)
-const labels = ['Opción óptima', 'Mayor caudal', 'Alternativa']
+const mostrarMas = ref(false)
 
 const cdtData = computed(() => calcularCDT({
   nd: form.value.nd, dt: form.value.dt,
@@ -179,6 +182,15 @@ const cdtData = computed(() => calcularCDT({
 const cableSugerido = computed(() => sugerirCable(form.value.nd, form.value.tirada))
 const tramosSugeridosVal = computed(() => tramosSugeridos(form.value.nd))
 
+// Primeras 3 opciones visibles siempre
+const opcionesPrincipales = computed(() => todasOpciones.value.slice(0, 3))
+// Opciones extra (4 y 5)
+const opcionesExtra = computed(() => todasOpciones.value.slice(3, 5))
+const hayMas = computed(() => opcionesExtra.value.length > 0)
+const opcionesVisibles = computed(() =>
+  mostrarMas.value ? [...opcionesPrincipales.value, ...opcionesExtra.value] : opcionesPrincipales.value
+)
+
 function upd() {
   form.value.cmts = cableSugerido.value
   form.value.tuberiaTramos = tramosSugeridosVal.value
@@ -187,50 +199,45 @@ function upd() {
 function buildExtras(kit) {
   const diametro = kit.sal === '2"' ? '2' : '1.25'
   const cc = calcularCostoCable(form.value.ctipo, form.value.cmts)
-  const costoTuberia = calcularCostoTuberia(
-    form.value.tuberia === 'si',
-    form.value.tuberiaSerie,
-    diametro,
-    form.value.tuberiaTramos
-  )
-  const costoAdaptador = calcularCostoAdaptador(
-    form.value.adaptador !== 'no',
-    form.value.adaptador,
-    diametro
-  )
+  const costoTuberia = calcularCostoTuberia(form.value.tuberia === 'si', form.value.tuberiaSerie, diametro, form.value.tuberiaTramos)
+  const costoAdaptador = calcularCostoAdaptador(form.value.adaptador !== 'no', form.value.adaptador, diametro)
   const costoValvula = calcularCostoValvula(form.value.valvula === 'si', diametro)
-
   return {
-    ctipo: form.value.ctipo,
-    cmts: form.value.cmts,
-    costoCable: cc,
-    tuberia: form.value.tuberia,
-    tuberiaSerie: form.value.tuberiaSerie,
-    tuberiaTramos: form.value.tuberiaTramos,
-    diametro,
-    costoTuberia,
-    adaptador: form.value.adaptador,
-    costoAdaptador,
-    valvula: form.value.valvula,
-    costoValvula,
-    bases: form.value.bases
+    ctipo: form.value.ctipo, cmts: form.value.cmts, costoCable: cc,
+    tuberia: form.value.tuberia, tuberiaSerie: form.value.tuberiaSerie,
+    tuberiaTramos: form.value.tuberiaTramos, diametro,
+    costoTuberia, adaptador: form.value.adaptador, costoAdaptador,
+    valvula: form.value.valvula, costoValvula, bases: form.value.bases
   }
 }
 
 async function calcular() {
+  mostrarMas.value = false
   const { cdt } = cdtData.value
+
   const aptos = kits.value
     .map(k => ({ ...k, fr: flujoEnCDT(k, cdt) }))
     .filter(k => k.fr > 0)
-    .sort((a, b) => a.precio - b.precio)
 
-  const opciones = seleccionarOpciones(aptos)
-  resultados.value = opciones.map(k => {
+  if (!aptos.length) { todasOpciones.value = []; calculado.value = true; return }
+
+  // Opción óptima = menor precio que funciona
+  const porPrecio = [...aptos].sort((a, b) => a.precio - b.precio)
+  const optima = porPrecio[0]
+
+  // Resto ordenados de menor a mayor caudal, sin repetir óptima
+  const resto = [...aptos]
+    .filter(k => k.id !== optima.id)
+    .sort((a, b) => a.fr - b.fr)
+
+  const ordenados = [optima, ...resto].slice(0, 5)
+
+  todasOpciones.value = ordenados.map((k, i) => {
     const extras = buildExtras(k)
     return {
       ...k,
+      label: i === 0 ? 'Opción óptima' : `Opción ${i + 1}`,
       caudales: calcularCaudales(k.fr),
-      margen: calcularMargen(k, extras),
       extras,
       total: calcularTotalProyecto(k, extras)
     }
@@ -242,16 +249,11 @@ async function guardar(kit) {
   const { cdt, nd, dt, tirada } = cdtData.value
   await saveCotizacion({
     cliente: form.value.cliente || 'A quien corresponda',
-    ciudad: form.value.ciudad,
-    asesor: form.value.asesor,
-    kit_id: kit.id,
-    kit_nombre: kit.name,
-    cdt, nd, dt, tirada,
-    lpm: kit.fr,
-    lpd: kit.caudales.lpd,
-    precio_kit: kit.precio,
-    precio_total: kit.total,
-    extras: kit.extras
+    ciudad: form.value.ciudad, asesor: form.value.asesor,
+    kit_id: kit.id, kit_nombre: kit.name,
+    cdt, nd, dt, tirada, lpm: kit.fr,
+    lpd: kit.caudales.lpd, precio_kit: kit.precio,
+    precio_total: kit.total, extras: kit.extras
   })
   alert('Cotización guardada ✓')
 }

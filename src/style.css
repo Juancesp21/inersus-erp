@@ -166,3 +166,16 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 /* HISTORIAL dentro de Cotizador */
 .historial-section { margin-top: 2rem; }
 .historial-section h3 { font-size: 15px; font-weight: 600; color: var(--navy); margin-bottom: 1rem; }
+/* DESGLOSE ACCESORIOS */
+.desglose { padding: .75rem 1.25rem; border-bottom: 1px solid var(--g100); }
+.desglose-title { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--g300); margin-bottom: .5rem; }
+.desglose-row { display: flex; justify-content: space-between; font-size: 12.5px; color: var(--g500); padding: 3px 0; }
+.desglose-total { display: flex; justify-content: space-between; font-size: 13px; font-weight: 600; color: var(--navy); padding: 6px 0 0; margin-top: 4px; border-top: 1px solid var(--g100); }
+
+/* TOTAL PROYECTO */
+.total-proyecto { display: flex; justify-content: space-between; align-items: center; padding: .75rem 1.25rem; border-bottom: 1px solid var(--g100); font-size: 14px; font-weight: 600; color: var(--navy); }
+
+/* MAS OPCIONES */
+.mas-opciones { display: flex; justify-content: center; margin-top: 1rem; }
+.btn-mas { background: transparent; border: 1px solid var(--g100); border-radius: 20px; padding: 8px 24px; font-family: inherit; font-size: 13px; color: var(--g500); cursor: pointer; transition: all .15s; }
+.btn-mas:hover { border-color: var(--sky); color: var(--sky); }
