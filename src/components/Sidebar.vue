@@ -10,15 +10,15 @@
 
     <nav class="sidebar-nav">
       <router-link to="/cotizador" class="nav-item">
-        <Droplets :size="18" />
+        <span>💧</span>
         <span>Cotizador</span>
       </router-link>
       <router-link to="/catalogo" class="nav-item">
-        <Package :size="18" />
+        <span>📦</span>
         <span>Catálogo</span>
       </router-link>
       <router-link to="/configuracion" class="nav-item">
-        <Settings :size="18" />
+        <span>⚙️</span>
         <span>Configuración</span>
       </router-link>
     </nav>
@@ -31,18 +31,15 @@
           <div class="user-role">Asesor</div>
         </div>
       </div>
-      <button class="sidebar-logout" @click="logout" title="Salir">
-        <LogOut :size="16" />
-      </button>
+      <button class="sidebar-logout" @click="logout" title="Salir">✕</button>
     </div>
   </aside>
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import { Droplets, Package, Settings, LogOut } from 'lucide-vue-next'
 
-const userName = sessionStorage.getItem('ins_u') || 'Usuario'
+const userName = sessionStorage.getItem('ins_u') || 'usuario'
 const userInitial = computed(() => userName[0].toUpperCase())
 
 function logout() {
