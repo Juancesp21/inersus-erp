@@ -9,7 +9,6 @@
       <button :class="['tab', tab === 'productos' ? 'active' : '']" @click="tab = 'productos'">Productos</button>
     </div>
 
-    <!-- KITS -->
     <div v-if="tab === 'kits'">
       <div class="loading" v-if="loadingKits">Cargando kits...</div>
       <table v-else class="data-table">
@@ -32,7 +31,7 @@
             <td>{{ k.hp }} HP</td>
             <td>{{ k.paneles }}</td>
             <td>{{ k.cdt_max }}m</td>
-            <td class="mono">${{ Number(k.precio_venta_mxn).toLocaleString('es-MX') }}</td>
+            <td class="mono">${{ Number(k.precio_venta || 0).toLocaleString('es-MX') }}</td>
             <td class="mono">${{ Number(k.costo_componentes || 0).toLocaleString('es-MX') }}</td>
             <td>
               <span :class="['badge-margen', Number(k.margen_pct) >= 20 ? 'ok' : 'low']">
@@ -44,7 +43,6 @@
       </table>
     </div>
 
-    <!-- PRODUCTOS -->
     <div v-if="tab === 'productos'">
       <div class="toolbar">
         <input v-model="busqueda" placeholder="Buscar producto..." class="search-input" />
@@ -112,9 +110,7 @@ const productosFiltrados = computed(() => {
 })
 
 onMounted(async () => {
-  const { data: kitsData } = await supabase
-    .from('v_kits_margen')
-    .select('*')
+  const { data: kitsData } = await supabase.from('v_kits_margen').select('*')
   kits.value = kitsData || []
   loadingKits.value = false
 
