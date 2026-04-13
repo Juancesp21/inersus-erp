@@ -3,14 +3,15 @@ export const DIAS = 7
 const EA = 10
 
 export function calcularCDT({ nd, dt, tirada, presion, ffric = 4.5 }) {
-  const pf = (tirada + EA) * (ffric / 100) * 1.2
+  const _nd = parseFloat(nd) || 0
+  const _dt = parseFloat(dt) || 0
+  const _tirada = parseFloat(tirada) || 0
+  const _presion = parseFloat(presion) || 0
+  const pf = (_tirada + EA) * (ffric / 100) * 1.2
   return {
-    nd,
-    dt,
-    tirada,
-    presion,
+    nd: _nd, dt: _dt, tirada: _tirada, presion: _presion,
     pf: parseFloat(pf.toFixed(2)),
-    cdt: parseFloat((nd + dt + presion + pf).toFixed(2))
+    cdt: parseFloat((_nd + _dt + _presion + pf).toFixed(2))
   }
 }
 
