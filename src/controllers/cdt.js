@@ -1,10 +1,9 @@
-const EA = 10
-const FFRIC = 3
 export const HRS = 6
 export const DIAS = 7
+const EA = 10
 
-export function calcularCDT({ nd, dt, tirada, presion }) {
-  const pf = (tirada + EA) * (FFRIC / 100) * 1.2
+export function calcularCDT({ nd, dt, tirada, presion, ffric = 4.5 }) {
+  const pf = (tirada + EA) * (ffric / 100) * 1.2
   return {
     nd,
     dt,
@@ -49,7 +48,7 @@ export function calcularMargen(kit, extras) {
   return Math.round(((pvSinIva - costoAcum) / pvSinIva) * 100)
 }
 
-export function generarResumen({ kit, cdt, nd, tirada, dt, presionLabel, caudales }) {
-  const presionTxt = presionLabel ? `, con ${presionLabel},` : ''
-  return `Considerando ${nd}m de profundidad, ${tirada}m de tirada horizontal${presionTxt} con ${dt}m de desnivel, el equipo ${kit.id} puede entregar aproximadamente ${caudales.lpm} litros por minuto a descarga libre, igual a ${caudales.lph.toLocaleString('es-MX')} litros por hora o ${caudales.lpd.toLocaleString('es-MX')} litros por día.`
+export function generarResumen({ kit, nd, tirada, dt, caudales }) {
+  const c = caudales
+  return `Considerando ${nd}m de profundidad, ${tirada}m de tirada horizontal con ${dt}m de desnivel, el equipo ${kit.id} puede entregar aproximadamente ${c.lpm} litros por minuto a descarga libre, igual a ${c.lph.toLocaleString('es-MX')} litros por hora o ${c.lpd.toLocaleString('es-MX')} litros por día.`
 }

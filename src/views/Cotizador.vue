@@ -176,7 +176,8 @@ const mostrarMas = ref(false)
 
 const cdtData = computed(() => calcularCDT({
   nd: form.value.nd, dt: form.value.dt,
-  tirada: form.value.tirada, presion: form.value.presion
+  tirada: form.value.tirada, presion: form.value.presion,
+  ffric: parseFloat(localStorage.getItem('ins_ffric') || 4.5)
 }))
 
 const cableSugerido = computed(() => sugerirCable(form.value.nd, form.value.tirada))

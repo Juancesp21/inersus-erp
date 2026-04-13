@@ -21,7 +21,12 @@
         <div class="config-field">
           <label>Margen mínimo (%)</label>
           <input type="number" v-model="margenMin" />
+        </div> 
+        <div class="config-field">
+          <label>Factor de fricción (%)</label>
+          <input type="number" v-model="ffric" step="0.1" />
         </div>
+        
         <button class="btn-save" @click="guardarParams">Guardar parámetros</button>
         <div class="save-msg" v-if="savedParams">✓ Guardado</div>
       </div>
@@ -81,6 +86,7 @@ const tdc = ref(18.15)
 const hrs = ref(6)
 const dias = ref(7)
 const margenMin = ref(20)
+const ffric = ref(parseFloat(localStorage.getItem('ins_ffric') || 4.5))
 const savedParams = ref(false)
 const savedPerfil = ref(false)
 const dbOk = ref(false)
@@ -102,6 +108,7 @@ function guardarParams() {
   localStorage.setItem('ins_margen_min', margenMin.value)
   savedParams.value = true
   setTimeout(() => { savedParams.value = false }, 2000)
+  localStorage.setItem('ins_ffric', ffric.value)
 }
 
 function guardarPerfil() {
