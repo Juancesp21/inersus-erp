@@ -27,6 +27,10 @@
           <input type="number" v-model="ffric" step="0.1" />
         </div>
         
+        <div class="config-field">
+          <label>Términos y condiciones (PDF)</label>
+          <textarea v-model="terminos" rows="8" style="border:1px solid var(--g100);border-radius:5px;padding:8px;font-family:inherit;font-size:12px;width:100%;resize:vertical;"></textarea>
+        </div>
         <button class="btn-save" @click="guardarParams">Guardar parámetros</button>
         <div class="save-msg" v-if="savedParams">✓ Guardado</div>
       </div>
@@ -87,6 +91,7 @@ const hrs = ref(6)
 const dias = ref(7)
 const margenMin = ref(20)
 const ffric = ref(parseFloat(localStorage.getItem('ins_ffric') || 4.5))
+const terminos = ref(localStorage.getItem('ins_terminos') || `Información de pago:\n- Beneficiario: Inersus Ingeniería Sustentable SA de CV\n- CLABE: 012580001234645395\n- Guía de rastreo en máx. 1 día hábil tras embarque\n- Equipo con seguro de paquetería — reportar daños en 24hrs\n- Garantía de 2 años en bomba y controlador`)
 const savedParams = ref(false)
 const savedPerfil = ref(false)
 const dbOk = ref(false)
@@ -109,6 +114,7 @@ function guardarParams() {
   savedParams.value = true
   setTimeout(() => { savedParams.value = false }, 2000)
   localStorage.setItem('ins_ffric', ffric.value)
+  localStorage.setItem('ins_terminos', terminos.value)
 }
 
 function guardarPerfil() {
