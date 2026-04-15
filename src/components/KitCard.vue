@@ -77,7 +77,7 @@
     </div>
 
     <div class="kactions">
-      <button class="btn-pdf" @click="$emit('pdf', kit)">Descargar PDF</button>
+      <button class="btn-pdf" @click="descargarPDF">Descargar PDF</button>
       <button class="btn-sec" @click="$emit('guardar', kit)">Guardar</button>
     </div>
   </div>
@@ -85,6 +85,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { generarPDF } from '../controllers/pdf.js'
 
 const props = defineProps(['kit', 'rank', 'label', 'cdt', 'caudales', 'margen', 'extras', 'params'])
 const emit = defineEmits(['pdf', 'guardar'])
@@ -111,5 +112,20 @@ async function copiar() {
   await navigator.clipboard.writeText(resumen.value)
   copied.value = true
   setTimeout(() => { copied.value = false }, 2000)
+}
+
+function descargarPDF() {
+  generarPDF({
+    kit: props.kit,
+    caudales: props.caudales,
+    extras: props.extras || {},
+    params: props.params,
+    form: {
+      asesor: props.params?.asesor || 'Ing. Miguel González',
+      cliente: props.params?.cliente || '',
+      ciudad: props.params?.ciudad || 'Monterrey, NL'
+    },
+    cdt: props.cdt
+  })
 }
 </script>
