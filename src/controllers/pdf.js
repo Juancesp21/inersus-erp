@@ -52,18 +52,14 @@ export function generarPDF({ kit, caudales, extras, params, form, cdt }) {
   })
   y += 36
 
-  // CLIENTE — sin caja, solo línea
-  doc.setDrawColor(...NV); doc.setLineWidth(0.5)
-  doc.line(mg, y, mg + 70, y)
-  doc.setFillColor(...NV); doc.rect(mg, y, 18, 5, 'F')
-  doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255,255,255)
-  doc.text('CLIENTE', mg + 1, y + 3.5)
-  y += 7
-  doc.setFontSize(9); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
-  doc.text((form.cliente || 'A QUIEN CORRESPONDA').toUpperCase(), mg, y)
+  // CLIENTE — texto simple
+  doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
+  doc.text('Cliente:', mg, y + 4)
+  doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
+  doc.text((form.cliente || 'A quien corresponda'), mg + 14, y + 4)
   doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
-  doc.text((form.ciudad || 'MONTERREY, NL').toUpperCase(), mg, y + 5)
-  y += 13
+  doc.text((form.ciudad || 'Monterrey, NL'), mg, y + 9)
+  y += 15
 
   // RESUMEN
   doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 5.5, 'F')
@@ -138,7 +134,8 @@ export function generarPDF({ kit, caudales, extras, params, form, cdt }) {
     doc.rect(mg, y, W - mg * 2, rh, 'F')
     doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
     doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
-    doc.text(doc.splitTextToSize(it.d, 65)[0], tcols[0], y + 4.2)
+    const descTrunc = it.d.length > 38 ? it.d.substring(0, 38) + '...' : it.d
+    doc.text(descTrunc, tcols[0], y + 4.2)
     doc.text(it.s || '', tcols[1], y + 4.2)
     doc.text(String(it.c), tcols[2], y + 4.2, { align: 'right' })
     doc.text('$' + (it.p || 0).toLocaleString('es-MX'), tcols[3], y + 4.2, { align: 'right' })
@@ -153,7 +150,7 @@ export function generarPDF({ kit, caudales, extras, params, form, cdt }) {
   const tw = 72, tx = W - mg - tw
   const terminos = localStorage ? (localStorage.getItem('ins_terminos') || TERMINOS_DEFAULT) : TERMINOS_DEFAULT
   const termLines = doc.splitTextToSize(terminos, tx - mg - 6)
-  const termH = Math.max(termLines.length * 4 + 10, 28)
+  const termH = termLines.length * 4 + 8
 
   // Header términos
   doc.setFillColor(...NV); doc.rect(mg, y, tx - mg - 4, 5.5, 'F')
