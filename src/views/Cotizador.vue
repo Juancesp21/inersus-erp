@@ -135,7 +135,7 @@
             :cdt="cdtData.cdt"
             :caudales="kit.caudales"
             :extras="kit.extras"
-            :params="{ nd: form.nd, dt: form.dt, tirada: form.tirada }"
+            :params="{ nd: form.nd, dt: form.dt, tirada: form.tirada, cliente: form.cliente, ciudad: form.ciudad, asesor: form.asesor }"
             @guardar="guardar"
           />
         </div>
