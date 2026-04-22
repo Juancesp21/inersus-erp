@@ -7,7 +7,7 @@ const routes = [
   { path: '/', redirect: '/cotizador' },
   { path: '/cotizador', component: Cotizador },
   { path: '/catalogo', component: Catalogo },
-  { path: '/configuracion', component: Configuracion }
+  { path: '/configuracion', component: Configuracion },
   { path: '/cotizador-proveedor', component: CotizadorProveedor }
 ]
 
