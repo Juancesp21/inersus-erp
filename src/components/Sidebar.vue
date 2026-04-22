@@ -13,6 +13,10 @@
         <span>💧</span>
         <span>Cotizador</span>
       </router-link>
+      <router-link to="/cotizador-proveedor" class="nav-item">
+        <span>📄</span>
+        <span>Cot. Proveedor</span>
+      </router-link>
       <router-link to="/catalogo" class="nav-item">
         <span>📦</span>
         <span>Catálogo</span>
