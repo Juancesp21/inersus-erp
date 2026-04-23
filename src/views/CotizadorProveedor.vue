@@ -69,7 +69,7 @@
           <label>Tipo de cambio (MXN/USD)</label>
           <div class="input-with-hint">
             <input v-model.number="form.tdc" type="number" step="0.01" min="1" />
-            <span class="input-hint">default: TDC actual + $0.10</span>
+            <span class="input-hint">TDC en tiempo real + $0.10</span>
           </div>
         </div>
         <div class="form-group">
@@ -100,8 +100,8 @@
         <table class="items-table">
           <thead>
             <tr>
-              <th>SKU</th>
               <th>Descripción</th>
+              <th>SKU</th>
               <th class="center">Cant.</th>
               <th class="center">U.M.</th>
               <th class="right">Precio USD</th>
@@ -113,8 +113,8 @@
           </thead>
           <tbody>
             <tr v-for="(item, i) in items" :key="i" :class="i % 2 === 0 ? 'row-even' : 'row-odd'">
-              <td class="sku">{{ item.sku }}</td>
               <td class="desc">{{ item.descripcion }}</td>
+              <td class="sku">{{ item.sku }}</td>
               <td class="center">{{ item.cantidad }}</td>
               <td class="center">{{ item.um }}</td>
               <td class="right">$ {{ fmtUSD(item.precioUSD) }}</td>
@@ -186,7 +186,6 @@ function folio() {
 export default {
   name: 'CotizadorProveedor',
   data() {
-    const tdcBase = parseFloat(localStorage.getItem('ins_tdc') || '17.30')
     return {
       step: 1,
       pdfFile: null,
@@ -199,10 +198,20 @@ export default {
         cliente: '',
         ciudad: '',
         resumen: '',
-        tdc: parseFloat((tdcBase + 0.10).toFixed(2)),
+        tdc: 17.40,
         margenGlobal: 30,
         asesor: localStorage.getItem('ins_asesor') || 'Ing. Miguel González',
       }
+    }
+  },
+  async mounted() {
+    try {
+      const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      const data = await res.json()
+      const tdcLive = data.rates.MXN
+      this.form.tdc = parseFloat((tdcLive + 0.10).toFixed(2))
+    } catch {
+      // Si falla, se queda el default 17.40
     }
   },
   computed: {
@@ -220,20 +229,9 @@ export default {
       return total / this.items.length
     }
   },
-  async mounted() {
-    try {
-      const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
-      const data = await res.json()
-      const tdcLive = data.rates.MXN
-      this.form.tdc = parseFloat((tdcLive + 0.10).toFixed(2))
-    } catch {
-      // Si falla, se queda el default 17.40
-    }
-  },
   methods: {
     setMargenMode(mode) {
       if (mode === 'item' && this.margenMode === 'global') {
-        // Al cambiar a por ítem, inicializa cada ítem con el margen global actual
         this.items.forEach(item => { item.margen = this.form.margenGlobal })
       }
       this.margenMode = mode
@@ -403,15 +401,15 @@ Formato exacto:
         y += rH + 4
       }
 
-      // TABLA PARTIDAS — columnas con más espacio
-      const tcols = [mg + 2, mg + 58, mg + 118, mg + 136, mg + 152, W - mg - 2]
+      // TABLA PARTIDAS
+      const tcols = [mg + 2, mg + 78, mg + 122, mg + 134, mg + 156, W - mg - 2]
       doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 6.5, 'F')
       doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
       ;[
-        ['SKU / CÓDIGO', 'left'],
         ['DESCRIPCIÓN', 'left'],
+        ['MARCA / SKU', 'left'],
         ['CANT.', 'right'],
-        ['U.M.', 'center'],
+        ['U.M.', 'left'],
         ['PRECIO UNIT.', 'right'],
         ['TOTAL MXN', 'right']
       ].forEach(([h, a], i) => doc.text(h, tcols[i], y + 4.5, { align: a }))
@@ -428,16 +426,19 @@ Formato exacto:
         doc.rect(mg, y, W - mg * 2, rh, 'F')
         doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
 
-        doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
-        const skuTrunc = (item.sku || '').length > 24 ? item.sku.substring(0, 24) + '…' : item.sku
-        doc.text(skuTrunc, tcols[0], y + 4.2)
+        // Descripción primero
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+        const descTrunc = (item.descripcion || '').length > 40 ? item.descripcion.substring(0, 40) + '…' : item.descripcion
+        doc.text(descTrunc, tcols[0], y + 4.2)
+
+        // SKU segundo
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
+        const skuTrunc = (item.sku || '').length > 18 ? item.sku.substring(0, 18) + '…' : item.sku
+        doc.text(skuTrunc, tcols[1], y + 4.2)
 
         doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
-        const descTrunc = (item.descripcion || '').length > 32 ? item.descripcion.substring(0, 32) + '…' : item.descripcion
-        doc.text(descTrunc, tcols[1], y + 4.2)
-
         doc.text(String(item.cantidad), tcols[2], y + 4.2, { align: 'right' })
-        doc.text(item.um || '', tcols[3] + 4, y + 4.2, { align: 'center' })
+        doc.text(item.um || '', tcols[3], y + 4.2)
         doc.text('$' + Math.round(pv).toLocaleString('es-MX'), tcols[4], y + 4.2, { align: 'right' })
 
         doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
@@ -502,63 +503,32 @@ Formato exacto:
   padding: 24px 20px;
   font-family: 'Segoe UI', sans-serif;
 }
-
-.module-header {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 24px;
-}
+.module-header { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
 .header-icon { font-size: 32px; }
 .module-header h1 { margin: 0; font-size: 20px; color: #0d2240; }
 .module-header p { margin: 2px 0 0; font-size: 13px; color: #888; }
 
 .card {
-  background: white;
-  border-radius: 10px;
-  border: 1px solid #e5e7eb;
-  padding: 20px 24px;
-  margin-bottom: 20px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  background: white; border-radius: 10px; border: 1px solid #e5e7eb;
+  padding: 20px 24px; margin-bottom: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.05);
 }
 .card-title {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 14px;
-  font-weight: 700;
-  color: #0d2240;
-  margin-bottom: 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 14px; font-weight: 700; color: #0d2240; margin-bottom: 16px;
 }
 .step-badge {
-  background: #0d2240;
-  color: white;
-  width: 22px; height: 22px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  font-weight: 800;
-  flex-shrink: 0;
+  background: #0d2240; color: white; width: 22px; height: 22px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 800; flex-shrink: 0;
 }
 .items-count {
-  margin-left: auto;
-  background: #e8f0fe;
-  color: #0d2240;
-  font-size: 11px;
-  padding: 2px 8px;
-  border-radius: 20px;
+  margin-left: auto; background: #e8f0fe; color: #0d2240;
+  font-size: 11px; padding: 2px 8px; border-radius: 20px;
 }
 
 .dropzone {
-  border: 2px dashed #c8d4e3;
-  border-radius: 10px;
-  padding: 40px 20px;
-  text-align: center;
-  cursor: pointer;
-  transition: all 0.2s;
-  background: #f8fafc;
+  border: 2px dashed #c8d4e3; border-radius: 10px; padding: 40px 20px;
+  text-align: center; cursor: pointer; transition: all 0.2s; background: #f8fafc;
 }
 .dropzone:hover, .dropzone.dragover { border-color: #0d2240; background: #eef2f8; }
 .dropzone.loaded { border-style: solid; border-color: #22c55e; background: #f0fdf4; padding: 20px; }
@@ -566,30 +536,18 @@ Formato exacto:
 .drop-label { font-size: 15px; font-weight: 600; color: #0d2240; margin: 0; }
 .drop-sub { font-size: 12px; color: #aaa; margin: 4px 0 0; }
 
-.loading-state {
-  display: flex; align-items: center; justify-content: center; gap: 12px;
-  color: #0d2240; font-weight: 600;
-}
+.loading-state { display: flex; align-items: center; justify-content: center; gap: 12px; color: #0d2240; font-weight: 600; }
 .spinner {
-  width: 22px; height: 22px;
-  border: 3px solid #c8d4e3;
-  border-top-color: #0d2240;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  width: 22px; height: 22px; border: 3px solid #c8d4e3;
+  border-top-color: #0d2240; border-radius: 50%; animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .loaded-state { display: flex; align-items: center; justify-content: center; gap: 12px; }
 .file-icon { font-size: 24px; }
 .file-name { font-size: 14px; font-weight: 600; color: #166534; }
-.btn-clear {
-  background: none; border: 1px solid #dc2626; color: #dc2626;
-  padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
-}
-.error-msg {
-  margin-top: 10px; color: #dc2626; font-size: 13px;
-  background: #fef2f2; padding: 8px 12px; border-radius: 6px;
-}
+.btn-clear { background: none; border: 1px solid #dc2626; color: #dc2626; padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px; }
+.error-msg { margin-top: 10px; color: #dc2626; font-size: 13px; background: #fef2f2; padding: 8px 12px; border-radius: 6px; }
 
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-full { grid-column: 1 / -1; }
@@ -603,45 +561,30 @@ Formato exacto:
 
 .margin-mode-row { display: flex; align-items: center; gap: 12px; }
 .toggle-group { display: flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
-.toggle-btn {
-  padding: 7px 16px; font-size: 12px; font-weight: 600;
-  background: white; border: none; cursor: pointer; color: #888; transition: all 0.2s;
-}
+.toggle-btn { padding: 7px 16px; font-size: 12px; font-weight: 600; background: white; border: none; cursor: pointer; color: #888; transition: all 0.2s; }
 .toggle-btn.active { background: #0d2240; color: white; }
 .global-margin-input { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #0d2240; }
-.global-margin-input input {
-  width: 60px; border: 1px solid #d1d5db; border-radius: 6px;
-  padding: 6px 8px; font-size: 14px; text-align: center; font-weight: 700;
-}
+.global-margin-input input { width: 60px; border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 8px; font-size: 14px; text-align: center; font-weight: 700; }
 .item-margin-input { display: flex; align-items: center; gap: 4px; justify-content: center; }
-.item-margin-input input {
-  width: 48px; border: 1px solid #d1d5db; border-radius: 4px;
-  padding: 4px; font-size: 12px; text-align: center;
-}
+.item-margin-input input { width: 48px; border: 1px solid #d1d5db; border-radius: 4px; padding: 4px; font-size: 12px; text-align: center; }
 
 .table-wrapper { overflow-x: auto; margin-bottom: 16px; }
 .items-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.items-table th {
-  background: #0d2240; color: white; padding: 8px;
-  font-size: 11px; font-weight: 700; white-space: nowrap;
-}
+.items-table th { background: #0d2240; color: white; padding: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
 .items-table td { padding: 7px 8px; vertical-align: middle; }
 .row-even { background: #f8f9fa; }
 .row-odd { background: white; }
 .center { text-align: center; }
 .right { text-align: right; }
 .sku { font-weight: 700; color: #0d2240; font-size: 11px; }
-.desc { color: #444; max-width: 200px; }
+.desc { color: #444; max-width: 220px; }
 .muted { color: #999; }
 .bold-blue { color: #1a5276; font-weight: 700; }
 .bold-navy { color: #0d2240; font-weight: 800; }
 
 .totales-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .totales-box { min-width: 280px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
-.total-line {
-  display: flex; justify-content: space-between;
-  padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #444;
-}
+.total-line { display: flex; justify-content: space-between; padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #444; }
 .total-final { background: #0d2240; color: white; font-weight: 800; font-size: 15px; }
 .margen-badge { text-align: center; padding: 6px; font-size: 12px; font-weight: 700; }
 .badge-green { background: #dcfce7; color: #166534; }
@@ -649,9 +592,8 @@ Formato exacto:
 
 .actions-row { display: flex; justify-content: flex-end; }
 .btn-pdf {
-  display: flex; align-items: center; gap: 8px;
-  background: #0d2240; color: white; border: none;
-  padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  display: flex; align-items: center; gap: 8px; background: #0d2240; color: white;
+  border: none; padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700;
   cursor: pointer; transition: background 0.2s;
 }
 .btn-pdf:hover { background: #1a3a60; }
