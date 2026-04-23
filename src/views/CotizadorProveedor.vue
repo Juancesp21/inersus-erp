@@ -113,8 +113,12 @@
           </thead>
           <tbody>
             <tr v-for="(item, i) in items" :key="i" :class="i % 2 === 0 ? 'row-even' : 'row-odd'">
-              <td class="desc">{{ item.descripcion }}</td>
-              <td class="sku">{{ item.sku }}</td>
+              <td class="desc">
+                <input class="cell-input" v-model="item.descripcion" />
+              </td>
+              <td class="sku">
+                <input class="cell-input sku-input" v-model="item.sku" />
+              </td>
               <td class="center">{{ item.cantidad }}</td>
               <td class="center">{{ item.um }}</td>
               <td class="right">$ {{ fmtUSD(item.precioUSD) }}</td>
@@ -310,7 +314,6 @@ Formato exacto:
         const clean = text.replace(/```json|```/g, '').trim()
         const parsed = JSON.parse(clean)
 
-        // Consolidar ítems con mismo SKU (distintos almacenes)
         const consolidado = []
         parsed.items.forEach(it => {
           const existing = consolidado.find(x => x.sku === it.sku)
@@ -379,12 +382,15 @@ Formato exacto:
       // CLIENTE + UBICACIÓN
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('Cliente:', mg, y + 4)
+      const cliW = doc.getTextWidth('Cliente:')
       doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
-      doc.text(this.form.cliente || 'A quien corresponda', mg + 12, y + 4)
+      doc.text(this.form.cliente || 'A quien corresponda', mg + cliW + 2, y + 4)
+
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('Ubicación:', mg, y + 10)
+      const ubW = doc.getTextWidth('Ubicación:')
       doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
-      doc.text(this.form.ciudad || '', mg + 18, y + 10)
+      doc.text(this.form.ciudad || '', mg + ubW + 2, y + 10)
       y += 18
 
       // RESUMEN (si hay)
@@ -408,9 +414,9 @@ Formato exacto:
       ;[
         ['DESCRIPCIÓN', 'left'],
         ['MARCA / SKU', 'center'],
-        ['CANT.', 'right'],
+        ['CANT.', 'center'],
         ['U.M.', 'left'],
-        ['PRECIO UNIT.', 'center'],
+        ['PRECIO UNIT.', 'right'],
         ['TOTAL MXN', 'right']
       ].forEach(([h, a], i) => doc.text(h, tcols[i], y + 4.5, { align: a }))
       y += 6.5
@@ -426,12 +432,10 @@ Formato exacto:
         doc.rect(mg, y, W - mg * 2, rh, 'F')
         doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
 
-        // Descripción primero
         doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
         const descTrunc = (item.descripcion || '').length > 40 ? item.descripcion.substring(0, 40) + '…' : item.descripcion
         doc.text(descTrunc, tcols[0], y + 4.2)
 
-        // SKU segundo
         doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
         const skuTrunc = (item.sku || '').length > 18 ? item.sku.substring(0, 18) + '…' : item.sku
         doc.text(skuTrunc, tcols[1], y + 4.2)
@@ -571,16 +575,39 @@ Formato exacto:
 .table-wrapper { overflow-x: auto; margin-bottom: 16px; }
 .items-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .items-table th { background: #0d2240; color: white; padding: 8px; font-size: 11px; font-weight: 700; white-space: nowrap; }
-.items-table td { padding: 7px 8px; vertical-align: middle; }
+.items-table td { padding: 4px 8px; vertical-align: middle; }
 .row-even { background: #f8f9fa; }
 .row-odd { background: white; }
 .center { text-align: center; }
 .right { text-align: right; }
-.sku { font-weight: 700; color: #0d2240; font-size: 11px; }
-.desc { color: #444; max-width: 220px; }
+.sku { font-weight: 700; color: #0d2240; font-size: 11px; min-width: 120px; }
+.desc { color: #444; min-width: 180px; }
 .muted { color: #999; }
 .bold-blue { color: #1a5276; font-weight: 700; }
 .bold-navy { color: #0d2240; font-weight: 800; }
+
+/* INPUTS EDITABLES EN TABLA */
+.cell-input {
+  width: 100%;
+  border: none;
+  background: transparent;
+  font-size: 12px;
+  color: #444;
+  padding: 2px 4px;
+  border-radius: 4px;
+  outline: none;
+  box-sizing: border-box;
+  font-family: 'Segoe UI', sans-serif;
+}
+.cell-input:focus {
+  background: #f0f4ff;
+  border: 1px solid #0d2240;
+}
+.sku-input {
+  font-weight: 700;
+  color: #0d2240;
+  font-size: 11px;
+}
 
 .totales-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .totales-box { min-width: 280px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
