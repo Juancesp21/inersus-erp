@@ -407,10 +407,10 @@ Formato exacto:
       doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
       ;[
         ['DESCRIPCIÓN', 'left'],
-        ['MARCA / SKU', 'left'],
+        ['MARCA / SKU', 'center'],
         ['CANT.', 'right'],
         ['U.M.', 'left'],
-        ['PRECIO UNIT.', 'right'],
+        ['PRECIO UNIT.', 'center'],
         ['TOTAL MXN', 'right']
       ].forEach(([h, a], i) => doc.text(h, tcols[i], y + 4.5, { align: a }))
       y += 6.5
