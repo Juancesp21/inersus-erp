@@ -290,7 +290,9 @@ Formato exacto:
         })
 
         const data = await response.json()
-        const text = data.content?.map(b => b.text || '').join('')
+        console.log('API response:', data)
+        const text = data.content?.map(b => b.text || '').join('') || ''
+        if (!text) throw new Error('Respuesta vacía de API')
         const clean = text.replace(/```json|```/g, '').trim()
         const parsed = JSON.parse(clean)
 
