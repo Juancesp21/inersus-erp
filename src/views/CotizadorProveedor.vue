@@ -5,7 +5,7 @@
     <div class="module-header">
       <div class="header-icon">📄</div>
       <div>
-        <h1>Cotizador desde Proveedor</h1>
+        <h1>Quote Creator</h1>
         <p>Importa una cotización de proveedor y genera tu propuesta Inersus</p>
       </div>
     </div>
@@ -76,8 +76,8 @@
           <label>Margen objetivo sobre precio de venta</label>
           <div class="margin-mode-row">
             <div class="toggle-group">
-              <button :class="['toggle-btn', margenMode === 'global' ? 'active' : '']" @click="margenMode = 'global'">Global</button>
-              <button :class="['toggle-btn', margenMode === 'item' ? 'active' : '']" @click="margenMode = 'item'">Por ítem</button>
+              <button :class="['toggle-btn', margenMode === 'global' ? 'active' : '']" @click="setMargenMode('global')">Global</button>
+              <button :class="['toggle-btn', margenMode === 'item' ? 'active' : '']" @click="setMargenMode('item')">Por ítem</button>
             </div>
             <div v-if="margenMode === 'global'" class="global-margin-input">
               <input v-model.number="form.margenGlobal" type="number" min="0" max="99" step="1" />
@@ -186,7 +186,7 @@ function folio() {
 export default {
   name: 'CotizadorProveedor',
   data() {
-    const tdcBase = parseFloat(localStorage.getItem('ins_tdc') || '18.15')
+    const tdcBase = parseFloat(localStorage.getItem('ins_tdc') || '17.30')
     return {
       step: 1,
       pdfFile: null,
@@ -220,7 +220,24 @@ export default {
       return total / this.items.length
     }
   },
+  async mounted() {
+    try {
+      const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
+      const data = await res.json()
+      const tdcLive = data.rates.MXN
+      this.form.tdc = parseFloat((tdcLive + 0.10).toFixed(2))
+    } catch {
+      // Si falla, se queda el default 17.40
+    }
+  },
   methods: {
+    setMargenMode(mode) {
+      if (mode === 'item' && this.margenMode === 'global') {
+        // Al cambiar a por ítem, inicializa cada ítem con el margen global actual
+        this.items.forEach(item => { item.margen = this.form.margenGlobal })
+      }
+      this.margenMode = mode
+    },
     precioVenta(item) {
       const costoMXN = item.precioUSD * this.form.tdc
       const margen = this.margenMode === 'global'
@@ -290,16 +307,22 @@ Formato exacto:
         })
 
         const data = await response.json()
-        console.log('API response:', JSON.stringify(data))
         const text = data.content?.map(b => b.text || '').join('') || ''
         if (!text) throw new Error('Respuesta vacía de API')
         const clean = text.replace(/```json|```/g, '').trim()
         const parsed = JSON.parse(clean)
 
-        this.items = parsed.items.map(it => ({
-          ...it,
-          margen: this.form.margenGlobal
-        }))
+        // Consolidar ítems con mismo SKU (distintos almacenes)
+        const consolidado = []
+        parsed.items.forEach(it => {
+          const existing = consolidado.find(x => x.sku === it.sku)
+          if (existing) {
+            existing.cantidad += it.cantidad
+          } else {
+            consolidado.push({ ...it, margen: this.form.margenGlobal })
+          }
+        })
+        this.items = consolidado
 
       } catch (err) {
         this.errorMsg = 'No se pudo leer el PDF. Intenta de nuevo o revisa que sea una cotización válida.'
@@ -355,14 +378,16 @@ Formato exacto:
       })
       y += 36
 
-      // CLIENTE
+      // CLIENTE + UBICACIÓN
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('Cliente:', mg, y + 4)
       doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
-      doc.text(this.form.cliente || 'A quien corresponda', mg + 14, y + 4)
-      doc.setFontSize(8); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
-      doc.text(this.form.ciudad || '', mg, y + 9)
-      y += 15
+      doc.text(this.form.cliente || 'A quien corresponda', mg + 12, y + 4)
+      doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
+      doc.text('Ubicación:', mg, y + 10)
+      doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
+      doc.text(this.form.ciudad || '', mg + 18, y + 10)
+      y += 18
 
       // RESUMEN (si hay)
       if (this.form.resumen) {
@@ -378,8 +403,8 @@ Formato exacto:
         y += rH + 4
       }
 
-      // TABLA PARTIDAS
-      const tcols = [mg + 2, mg + 52, mg + 112, mg + 130, mg + 145, W - mg - 2]
+      // TABLA PARTIDAS — columnas con más espacio
+      const tcols = [mg + 2, mg + 58, mg + 118, mg + 136, mg + 152, W - mg - 2]
       doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 6.5, 'F')
       doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
       ;[
@@ -404,11 +429,11 @@ Formato exacto:
         doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
 
         doc.setFontSize(6.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
-        const skuTrunc = (item.sku || '').length > 22 ? item.sku.substring(0, 22) + '…' : item.sku
+        const skuTrunc = (item.sku || '').length > 24 ? item.sku.substring(0, 24) + '…' : item.sku
         doc.text(skuTrunc, tcols[0], y + 4.2)
 
         doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
-        const descTrunc = (item.descripcion || '').length > 34 ? item.descripcion.substring(0, 34) + '…' : item.descripcion
+        const descTrunc = (item.descripcion || '').length > 32 ? item.descripcion.substring(0, 32) + '…' : item.descripcion
         doc.text(descTrunc, tcols[1], y + 4.2)
 
         doc.text(String(item.cantidad), tcols[2], y + 4.2, { align: 'right' })
@@ -484,19 +509,9 @@ Formato exacto:
   gap: 16px;
   margin-bottom: 24px;
 }
-.header-icon {
-  font-size: 32px;
-}
-.module-header h1 {
-  margin: 0;
-  font-size: 20px;
-  color: #0d2240;
-}
-.module-header p {
-  margin: 2px 0 0;
-  font-size: 13px;
-  color: #888;
-}
+.header-icon { font-size: 32px; }
+.module-header h1 { margin: 0; font-size: 20px; color: #0d2240; }
+.module-header p { margin: 2px 0 0; font-size: 13px; color: #888; }
 
 .card {
   background: white;
@@ -518,8 +533,7 @@ Formato exacto:
 .step-badge {
   background: #0d2240;
   color: white;
-  width: 22px;
-  height: 22px;
+  width: 22px; height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -537,7 +551,6 @@ Formato exacto:
   border-radius: 20px;
 }
 
-/* DROPZONE */
 .dropzone {
   border: 2px dashed #c8d4e3;
   border-radius: 10px;
@@ -547,27 +560,15 @@ Formato exacto:
   transition: all 0.2s;
   background: #f8fafc;
 }
-.dropzone:hover, .dropzone.dragover {
-  border-color: #0d2240;
-  background: #eef2f8;
-}
-.dropzone.loaded {
-  border-style: solid;
-  border-color: #22c55e;
-  background: #f0fdf4;
-  padding: 20px;
-}
+.dropzone:hover, .dropzone.dragover { border-color: #0d2240; background: #eef2f8; }
+.dropzone.loaded { border-style: solid; border-color: #22c55e; background: #f0fdf4; padding: 20px; }
 .drop-icon { font-size: 32px; margin-bottom: 8px; }
 .drop-label { font-size: 15px; font-weight: 600; color: #0d2240; margin: 0; }
 .drop-sub { font-size: 12px; color: #aaa; margin: 4px 0 0; }
 
 .loading-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  color: #0d2240;
-  font-weight: 600;
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  color: #0d2240; font-weight: 600;
 }
 .spinner {
   width: 22px; height: 22px;
@@ -578,150 +579,53 @@ Formato exacto:
 }
 @keyframes spin { to { transform: rotate(360deg); } }
 
-.loaded-state {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-}
+.loaded-state { display: flex; align-items: center; justify-content: center; gap: 12px; }
 .file-icon { font-size: 24px; }
 .file-name { font-size: 14px; font-weight: 600; color: #166534; }
 .btn-clear {
-  background: none;
-  border: 1px solid #dc2626;
-  color: #dc2626;
-  padding: 4px 10px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
+  background: none; border: 1px solid #dc2626; color: #dc2626;
+  padding: 4px 10px; border-radius: 6px; cursor: pointer; font-size: 12px;
 }
 .error-msg {
-  margin-top: 10px;
-  color: #dc2626;
-  font-size: 13px;
-  background: #fef2f2;
-  padding: 8px 12px;
-  border-radius: 6px;
+  margin-top: 10px; color: #dc2626; font-size: 13px;
+  background: #fef2f2; padding: 8px 12px; border-radius: 6px;
 }
 
-/* FORM */
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .form-full { grid-column: 1 / -1; }
-.form-group label {
-  display: block;
-  font-size: 12px;
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 5px;
+.form-group label { display: block; font-size: 12px; font-weight: 600; color: #555; margin-bottom: 5px; }
+.form-group input, .form-group textarea {
+  width: 100%; border: 1px solid #d1d5db; border-radius: 6px;
+  padding: 8px 10px; font-size: 13px; outline: none; box-sizing: border-box; transition: border-color 0.2s;
 }
-.form-group input,
-.form-group textarea {
-  width: 100%;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 8px 10px;
-  font-size: 13px;
-  outline: none;
-  box-sizing: border-box;
-  transition: border-color 0.2s;
-}
-.form-group input:focus,
-.form-group textarea:focus {
-  border-color: #0d2240;
-}
-.input-with-hint {
-  position: relative;
-}
-.input-hint {
-  display: block;
-  font-size: 10px;
-  color: #aaa;
-  margin-top: 3px;
-}
+.form-group input:focus, .form-group textarea:focus { border-color: #0d2240; }
+.input-hint { display: block; font-size: 10px; color: #aaa; margin-top: 3px; }
 
-/* TOGGLE */
-.margin-mode-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.toggle-group {
-  display: flex;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  overflow: hidden;
-}
+.margin-mode-row { display: flex; align-items: center; gap: 12px; }
+.toggle-group { display: flex; border: 1px solid #d1d5db; border-radius: 6px; overflow: hidden; }
 .toggle-btn {
-  padding: 7px 16px;
-  font-size: 12px;
-  font-weight: 600;
-  background: white;
-  border: none;
-  cursor: pointer;
-  color: #888;
-  transition: all 0.2s;
+  padding: 7px 16px; font-size: 12px; font-weight: 600;
+  background: white; border: none; cursor: pointer; color: #888; transition: all 0.2s;
 }
-.toggle-btn.active {
-  background: #0d2240;
-  color: white;
-}
-.global-margin-input {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-weight: 700;
-  color: #0d2240;
-}
+.toggle-btn.active { background: #0d2240; color: white; }
+.global-margin-input { display: flex; align-items: center; gap: 6px; font-weight: 700; color: #0d2240; }
 .global-margin-input input {
-  width: 60px;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 6px 8px;
-  font-size: 14px;
-  text-align: center;
-  font-weight: 700;
+  width: 60px; border: 1px solid #d1d5db; border-radius: 6px;
+  padding: 6px 8px; font-size: 14px; text-align: center; font-weight: 700;
 }
-.item-margin-input {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  justify-content: center;
-}
+.item-margin-input { display: flex; align-items: center; gap: 4px; justify-content: center; }
 .item-margin-input input {
-  width: 48px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
-  padding: 4px 4px;
-  font-size: 12px;
-  text-align: center;
+  width: 48px; border: 1px solid #d1d5db; border-radius: 4px;
+  padding: 4px; font-size: 12px; text-align: center;
 }
 
-/* TABLA */
-.table-wrapper {
-  overflow-x: auto;
-  margin-bottom: 16px;
-}
-.items-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 12px;
-}
+.table-wrapper { overflow-x: auto; margin-bottom: 16px; }
+.items-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .items-table th {
-  background: #0d2240;
-  color: white;
-  padding: 8px 8px;
-  font-size: 11px;
-  font-weight: 700;
-  white-space: nowrap;
+  background: #0d2240; color: white; padding: 8px;
+  font-size: 11px; font-weight: 700; white-space: nowrap;
 }
-.items-table td {
-  padding: 7px 8px;
-  vertical-align: middle;
-}
+.items-table td { padding: 7px 8px; vertical-align: middle; }
 .row-even { background: #f8f9fa; }
 .row-odd { background: white; }
 .center { text-align: center; }
@@ -732,59 +636,23 @@ Formato exacto:
 .bold-blue { color: #1a5276; font-weight: 700; }
 .bold-navy { color: #0d2240; font-weight: 800; }
 
-/* TOTALES */
-.totales-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 16px;
-}
-.totales-box {
-  min-width: 280px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  overflow: hidden;
-}
+.totales-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
+.totales-box { min-width: 280px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
 .total-line {
-  display: flex;
-  justify-content: space-between;
-  padding: 8px 14px;
-  font-size: 13px;
-  border-bottom: 1px solid #f0f0f0;
-  color: #444;
+  display: flex; justify-content: space-between;
+  padding: 8px 14px; font-size: 13px; border-bottom: 1px solid #f0f0f0; color: #444;
 }
-.total-final {
-  background: #0d2240;
-  color: white;
-  font-weight: 800;
-  font-size: 15px;
-}
-.margen-badge {
-  text-align: center;
-  padding: 6px;
-  font-size: 12px;
-  font-weight: 700;
-}
+.total-final { background: #0d2240; color: white; font-weight: 800; font-size: 15px; }
+.margen-badge { text-align: center; padding: 6px; font-size: 12px; font-weight: 700; }
 .badge-green { background: #dcfce7; color: #166534; }
 .badge-orange { background: #fff7ed; color: #9a3412; }
 
-/* ACCIONES */
-.actions-row {
-  display: flex;
-  justify-content: flex-end;
-}
+.actions-row { display: flex; justify-content: flex-end; }
 .btn-pdf {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: #0d2240;
-  color: white;
-  border: none;
-  padding: 11px 24px;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: background 0.2s;
+  display: flex; align-items: center; gap: 8px;
+  background: #0d2240; color: white; border: none;
+  padding: 11px 24px; border-radius: 8px; font-size: 14px; font-weight: 700;
+  cursor: pointer; transition: background 0.2s;
 }
 .btn-pdf:hover { background: #1a3a60; }
 .btn-pdf:disabled { background: #aaa; cursor: not-allowed; }
