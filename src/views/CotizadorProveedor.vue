@@ -136,20 +136,48 @@
         </table>
       </div>
 
+      <!-- CARGOS ADICIONALES -->
+      <div class="cargos-row">
+        <div class="cargo-item">
+          <label>Mano de obra</label>
+          <div class="cargo-input">
+            <span class="cargo-prefix">$</span>
+            <input v-model.number="form.manoObra" type="number" min="0" step="100" placeholder="0" />
+            <span class="cargo-hint">MXN</span>
+          </div>
+        </div>
+        <div class="cargo-item">
+          <label>Envío</label>
+          <div class="cargo-input">
+            <span class="cargo-prefix">$</span>
+            <input v-model.number="form.envio" type="number" min="0" step="100" placeholder="0" />
+            <span class="cargo-hint">MXN</span>
+          </div>
+        </div>
+      </div>
+
       <!-- TOTALES -->
       <div class="totales-row">
         <div class="totales-box">
           <div class="total-line">
-            <span>Subtotal sin IVA</span>
+            <span>Subtotal equipos</span>
             <span>$ {{ fmtMXN(subtotal) }}</span>
+          </div>
+          <div class="total-line" v-if="form.manoObra > 0">
+            <span>Mano de obra</span>
+            <span>$ {{ fmtMXN(form.manoObra) }}</span>
+          </div>
+          <div class="total-line" v-if="form.envio > 0">
+            <span>Envío</span>
+            <span>$ {{ fmtMXN(form.envio) }}</span>
           </div>
           <div class="total-line">
             <span>IVA 16%</span>
-            <span>$ {{ fmtMXN(subtotal * 0.16) }}</span>
+            <span>$ {{ fmtMXN(totalConCargos * 0.16) }}</span>
           </div>
           <div class="total-line total-final">
             <span>TOTAL</span>
-            <span>$ {{ fmtMXN(subtotal * 1.16) }}</span>
+            <span>$ {{ fmtMXN(totalConCargos * 1.16) }}</span>
           </div>
           <div class="margen-badge" :class="margenPromedio >= 20 ? 'badge-green' : 'badge-orange'">
             Margen promedio: {{ margenPromedio.toFixed(1) }}%
@@ -204,6 +232,8 @@ export default {
         resumen: '',
         tdc: 17.40,
         margenGlobal: 30,
+        manoObra: 0,
+        envio: 0,
         asesor: localStorage.getItem('ins_asesor') || 'Ing. Miguel González',
       }
     }
@@ -212,17 +242,17 @@ export default {
     try {
       const res = await fetch('https://api.exchangerate-api.com/v4/latest/USD')
       const data = await res.json()
-      const tdcLive = data.rates.MXN
-      this.form.tdc = parseFloat((tdcLive + 0.10).toFixed(2))
+      this.form.tdc = parseFloat((data.rates.MXN + 0.10).toFixed(2))
     } catch {
-      // Si falla, se queda el default 17.40
+      // default 17.40
     }
   },
   computed: {
     subtotal() {
-      return this.items.reduce((acc, item) => {
-        return acc + this.precioVenta(item) * item.cantidad
-      }, 0)
+      return this.items.reduce((acc, item) => acc + this.precioVenta(item) * item.cantidad, 0)
+    },
+    totalConCargos() {
+      return this.subtotal + (this.form.manoObra || 0) + (this.form.envio || 0)
     },
     margenPromedio() {
       if (!this.items.length) return 0
@@ -281,7 +311,6 @@ export default {
 
       try {
         const base64 = await this.fileToBase64(file)
-
         const response = await fetch('/.netlify/functions/claude', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -298,10 +327,7 @@ Formato exacto:
             messages: [{
               role: 'user',
               content: [
-                {
-                  type: 'document',
-                  source: { type: 'base64', media_type: 'application/pdf', data: base64 }
-                },
+                { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
                 { type: 'text', text: 'Extrae todos los ítems de esta cotización de proveedor.' }
               ]
             }]
@@ -317,11 +343,8 @@ Formato exacto:
         const consolidado = []
         parsed.items.forEach(it => {
           const existing = consolidado.find(x => x.sku === it.sku)
-          if (existing) {
-            existing.cantidad += it.cantidad
-          } else {
-            consolidado.push({ ...it, margen: this.form.margenGlobal })
-          }
+          if (existing) { existing.cantidad += it.cantidad }
+          else { consolidado.push({ ...it, margen: this.form.margenGlobal }) }
         })
         this.items = consolidado
 
@@ -362,7 +385,7 @@ Formato exacto:
       doc.setTextColor(...NV); doc.setFont('helvetica', 'bold')
       doc.text('www.inersus.mx', mg + 28, y + 31)
 
-      // TÍTULO COTIZACIÓN
+      // TÍTULO
       doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('COTIZACIÓN', W - mg, y + 7, { align: 'right' })
 
@@ -385,7 +408,6 @@ Formato exacto:
       const cliW = doc.getTextWidth('Cliente:')
       doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
       doc.text(this.form.cliente || 'A quien corresponda', mg + cliW + 2, y + 4)
-
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('Ubicación:', mg, y + 10)
       const ubW = doc.getTextWidth('Ubicación:')
@@ -393,7 +415,7 @@ Formato exacto:
       doc.text(this.form.ciudad || '', mg + ubW + 2, y + 10)
       y += 18
 
-      // RESUMEN (si hay)
+      // RESUMEN
       if (this.form.resumen) {
         doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 5.5, 'F')
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
@@ -411,14 +433,8 @@ Formato exacto:
       const tcols = [mg + 2, mg + 78, mg + 122, mg + 134, mg + 156, W - mg - 2]
       doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 6.5, 'F')
       doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
-      ;[
-        ['DESCRIPCIÓN', 'left'],
-        ['MARCA / SKU', 'center'],
-        ['CANT.', 'center'],
-        ['U.M.', 'left'],
-        ['PRECIO UNIT.', 'right'],
-        ['TOTAL MXN', 'right']
-      ].forEach(([h, a], i) => doc.text(h, tcols[i], y + 4.5, { align: a }))
+      ;[['DESCRIPCIÓN','left'],['MARCA / SKU','left'],['CANT.','right'],['U.M.','left'],['PRECIO UNIT.','right'],['TOTAL MXN','right']]
+        .forEach(([h, a], i) => doc.text(h, tcols[i], y + 4.5, { align: a }))
       y += 6.5
 
       let sub = 0
@@ -449,6 +465,38 @@ Formato exacto:
         doc.text('$' + Math.round(tot).toLocaleString('es-MX'), tcols[5], y + 4.2, { align: 'right' })
         y += rh
       })
+
+      // MANO DE OBRA y ENVÍO en tabla
+      if (this.form.manoObra > 0) {
+        const rh = 6.5
+        doc.setFillColor(255, 255, 255); doc.rect(mg, y, W - mg * 2, rh, 'F')
+        doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+        doc.text('Mano de obra', tcols[0], y + 4.2)
+        doc.text('SERVICIO', tcols[1], y + 4.2)
+        doc.text('1', tcols[2], y + 4.2, { align: 'right' })
+        doc.text('SVC', tcols[3], y + 4.2)
+        doc.text('$' + Math.round(this.form.manoObra).toLocaleString('es-MX'), tcols[4], y + 4.2, { align: 'right' })
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
+        doc.text('$' + Math.round(this.form.manoObra).toLocaleString('es-MX'), tcols[5], y + 4.2, { align: 'right' })
+        y += rh
+      }
+
+      if (this.form.envio > 0) {
+        const rh = 6.5
+        doc.setFillColor(248, 248, 245); doc.rect(mg, y, W - mg * 2, rh, 'F')
+        doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
+        doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
+        doc.text('Envío y flete', tcols[0], y + 4.2)
+        doc.text('FLETE', tcols[1], y + 4.2)
+        doc.text('1', tcols[2], y + 4.2, { align: 'right' })
+        doc.text('SVC', tcols[3], y + 4.2)
+        doc.text('$' + Math.round(this.form.envio).toLocaleString('es-MX'), tcols[4], y + 4.2, { align: 'right' })
+        doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
+        doc.text('$' + Math.round(this.form.envio).toLocaleString('es-MX'), tcols[5], y + 4.2, { align: 'right' })
+        y += rh
+      }
+
       y += 3
 
       // TÉRMINOS + TOTALES
@@ -465,8 +513,9 @@ Formato exacto:
       doc.text(termLines, mg + 2, y + 9.5)
 
       const totY = y
-      const iva = sub * 0.16
-      ;[['Subtotal', sub, false], ['IVA 16%', iva, false], ['TOTAL', sub + iva, true]].forEach(([lbl, val, bold], i) => {
+      const totalFinal = this.totalConCargos
+      const iva = totalFinal * 0.16
+      ;[['Subtotal', totalFinal, false], ['IVA 16%', iva, false], ['TOTAL', totalFinal + iva, true]].forEach(([lbl, val, bold], i) => {
         const ry2 = totY + i * 6
         if (bold) { doc.setFillColor(180, 210, 240) } else { doc.setFillColor(255, 255, 255) }
         doc.rect(tx, ry2, tw, 6, 'F')
@@ -525,10 +574,7 @@ Formato exacto:
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
   font-size: 11px; font-weight: 800; flex-shrink: 0;
 }
-.items-count {
-  margin-left: auto; background: #e8f0fe; color: #0d2240;
-  font-size: 11px; padding: 2px 8px; border-radius: 20px;
-}
+.items-count { margin-left: auto; background: #e8f0fe; color: #0d2240; font-size: 11px; padding: 2px 8px; border-radius: 20px; }
 
 .dropzone {
   border: 2px dashed #c8d4e3; border-radius: 10px; padding: 40px 20px;
@@ -541,10 +587,7 @@ Formato exacto:
 .drop-sub { font-size: 12px; color: #aaa; margin: 4px 0 0; }
 
 .loading-state { display: flex; align-items: center; justify-content: center; gap: 12px; color: #0d2240; font-weight: 600; }
-.spinner {
-  width: 22px; height: 22px; border: 3px solid #c8d4e3;
-  border-top-color: #0d2240; border-radius: 50%; animation: spin 0.8s linear infinite;
-}
+.spinner { width: 22px; height: 22px; border: 3px solid #c8d4e3; border-top-color: #0d2240; border-radius: 50%; animation: spin 0.8s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .loaded-state { display: flex; align-items: center; justify-content: center; gap: 12px; }
@@ -586,28 +629,47 @@ Formato exacto:
 .bold-blue { color: #1a5276; font-weight: 700; }
 .bold-navy { color: #0d2240; font-weight: 800; }
 
-/* INPUTS EDITABLES EN TABLA */
 .cell-input {
-  width: 100%;
-  border: none;
-  background: transparent;
-  font-size: 12px;
-  color: #444;
-  padding: 2px 4px;
-  border-radius: 4px;
-  outline: none;
-  box-sizing: border-box;
+  width: 100%; border: none; background: transparent;
+  font-size: 12px; color: #444; padding: 2px 4px;
+  border-radius: 4px; outline: none; box-sizing: border-box;
   font-family: 'Segoe UI', sans-serif;
 }
-.cell-input:focus {
-  background: #f0f4ff;
-  border: 1px solid #0d2240;
+.cell-input:focus { background: #f0f4ff; border: 1px solid #0d2240; }
+.sku-input { font-weight: 700; color: #0d2240; font-size: 11px; }
+
+/* CARGOS ADICIONALES */
+.cargos-row {
+  display: flex;
+  gap: 24px;
+  padding: 14px 0;
+  border-top: 1px solid #f0f0f0;
+  margin-bottom: 16px;
 }
-.sku-input {
-  font-weight: 700;
-  color: #0d2240;
-  font-size: 11px;
+.cargo-item label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 6px;
 }
+.cargo-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: white;
+  width: 180px;
+}
+.cargo-input:focus-within { border-color: #0d2240; }
+.cargo-prefix { font-size: 13px; color: #888; font-weight: 600; }
+.cargo-input input {
+  border: none; outline: none; font-size: 13px;
+  width: 100%; font-weight: 600; color: #0d2240;
+}
+.cargo-hint { font-size: 11px; color: #aaa; white-space: nowrap; }
 
 .totales-row { display: flex; justify-content: flex-end; margin-bottom: 16px; }
 .totales-box { min-width: 280px; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
@@ -629,5 +691,6 @@ Formato exacto:
 @media (max-width: 640px) {
   .form-grid { grid-template-columns: 1fr; }
   .form-full { grid-column: 1; }
+  .cargos-row { flex-direction: column; }
 }
 </style>
