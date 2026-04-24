@@ -336,7 +336,7 @@ export default {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             model: 'claude-sonnet-4-5',
-            max_tokens: 1000,
+            max_tokens: 4000,
             system: `Eres un extractor de datos de cotizaciones. Extrae todos los ítems de la tabla de productos.
 Responde SOLO con JSON válido, sin backticks, sin texto adicional.
 Formato exacto:
