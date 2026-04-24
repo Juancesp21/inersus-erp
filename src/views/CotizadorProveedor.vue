@@ -11,7 +11,7 @@
     </div>
 
     <!-- STEP 1: UPLOAD -->
-    <div class="card" v-if="step >= 1">
+    <div class="card">
       <div class="card-title">
         <span class="step-badge">1</span>
         Cotización del proveedor
@@ -45,8 +45,8 @@
       <div v-if="errorMsg" class="error-msg">⚠ {{ errorMsg }}</div>
     </div>
 
-    <!-- STEP 2: DATOS -->
-    <div class="card" v-if="items.length > 0">
+    <!-- STEP 2: DATOS — siempre visible -->
+    <div class="card">
       <div class="card-title">
         <span class="step-badge">2</span>
         Datos de la cotización
@@ -88,7 +88,7 @@
       </div>
     </div>
 
-    <!-- STEP 3: TABLA DE ÍTEMS -->
+    <!-- STEP 3: TABLA — solo cuando hay ítems -->
     <div class="card" v-if="items.length > 0">
       <div class="card-title">
         <span class="step-badge">3</span>
@@ -109,7 +109,7 @@
               <th v-if="margenMode === 'item'" class="center">Margen %</th>
               <th class="right">Precio venta MXN</th>
               <th class="right">Total MXN</th>
-              <th class="center">—</th>
+              <th class="center" style="width:32px"></th>
             </tr>
           </thead>
           <tbody>
@@ -129,26 +129,35 @@
               </td>
               <td class="right bold-blue">$ {{ fmtMXN(precioVenta(item)) }}</td>
               <td class="right bold-navy">$ {{ fmtMXN(precioVenta(item) * item.cantidad) }}</td>
-              <td class="center"></td>
+              <td></td>
             </tr>
 
             <!-- Líneas extra manuales -->
             <tr v-for="(linea, i) in lineasExtra" :key="'e'+i" class="row-extra">
-              <td class="desc"><input class="cell-input" v-model="linea.descripcion" placeholder="Descripción..." /></td>
-              <td class="sku"><input class="cell-input sku-input" v-model="linea.sku" placeholder="SKU (opcional)" /></td>
-              <td class="center">
-                <input class="cell-input center" v-model.number="linea.cantidad" type="number" min="1" style="width:40px" />
+              <td class="desc">
+                <input class="cell-input" v-model="linea.descripcion" placeholder="Descripción..." />
+              </td>
+              <td class="sku">
+                <input class="cell-input sku-input" v-model="linea.sku" placeholder="Opcional" />
               </td>
               <td class="center">
-                <input class="cell-input center" v-model="linea.um" placeholder="PZA" style="width:40px" />
+                <input class="cell-input" v-model.number="linea.cantidad" type="number" min="1" style="width:36px;text-align:center" />
+              </td>
+              <td class="center">
+                <input class="cell-input" v-model="linea.um" placeholder="PZA" style="width:36px;text-align:center" />
               </td>
               <td class="right muted">—</td>
               <td class="right muted">—</td>
               <td v-if="margenMode === 'item'" class="center">—</td>
-              <td class="right bold-blue">$ {{ fmtMXN(linea.precioMXN) }}</td>
+              <td class="right" colspan="1">
+                <div class="precio-extra-input">
+                  <span>$</span>
+                  <input class="cell-input" v-model.number="linea.precioMXN" type="number" min="0" placeholder="0" style="width:80px;text-align:right" />
+                </div>
+              </td>
               <td class="right bold-navy">$ {{ fmtMXN(linea.precioMXN * linea.cantidad) }}</td>
               <td class="center">
-                <button class="btn-remove-row" @click="lineasExtra.splice(i, 1)" title="Eliminar">✕</button>
+                <button class="btn-remove-row" @click="lineasExtra.splice(i, 1)">✕</button>
               </td>
             </tr>
           </tbody>
@@ -379,10 +388,7 @@ Formato exacto:
       const num = folio()
       const hoy = new Date().toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
 
-      // LOGO
       doc.addImage(logoUrl, 'PNG', mg, y, 24, 20)
-
-      // EMPRESA
       doc.setFontSize(10); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('INERSUS INGENIERÍA SUSTENTABLE SA DE CV', mg + 28, y + 5)
       doc.setFontSize(7); doc.setFont('helvetica', 'normal'); doc.setTextColor(...GR)
@@ -392,7 +398,6 @@ Formato exacto:
         'Mail: gonzalezm@inersus.mx'].forEach((l, i) => doc.text(l, mg + 28, y + 10 + i * 4))
       doc.setTextColor(...NV); doc.setFont('helvetica', 'bold')
       doc.text('www.inersus.mx', mg + 28, y + 31)
-
       doc.setFontSize(18); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('COTIZACIÓN', W - mg, y + 7, { align: 'right' })
 
@@ -408,7 +413,6 @@ Formato exacto:
       })
       y += 36
 
-      // CLIENTE + UBICACIÓN
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('Cliente:', mg, y + 4)
       const cliW = doc.getTextWidth('Cliente:')
@@ -421,7 +425,6 @@ Formato exacto:
       doc.text(this.form.ciudad || '', mg + ubW + 2, y + 10)
       y += 18
 
-      // RESUMEN
       if (this.form.resumen) {
         doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 5.5, 'F')
         doc.setFontSize(7.5); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
@@ -435,7 +438,6 @@ Formato exacto:
         y += rH + 4
       }
 
-      // TABLA
       const tcols = [mg + 2, mg + 78, mg + 122, mg + 134, mg + 156, W - mg - 2]
       doc.setFillColor(...NV); doc.rect(mg, y, W - mg * 2, 6.5, 'F')
       doc.setFontSize(7); doc.setFont('helvetica', 'bold'); doc.setTextColor(255, 255, 255)
@@ -445,20 +447,15 @@ Formato exacto:
 
       let rowIdx = 0
 
-      // Ítems proveedor
       this.items.forEach(item => {
-        const rh = 6.5
-        const pv = this.precioVenta(item)
-        const tot = pv * item.cantidad
+        const rh = 6.5, pv = this.precioVenta(item), tot = pv * item.cantidad
         if (rowIdx % 2 === 0) { doc.setFillColor(248, 248, 245) } else { doc.setFillColor(255, 255, 255) }
         doc.rect(mg, y, W - mg * 2, rh, 'F')
         doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
         doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
-        const descTrunc = (item.descripcion || '').length > 40 ? item.descripcion.substring(0, 40) + '…' : item.descripcion
-        doc.text(descTrunc, tcols[0], y + 4.2)
+        doc.text((item.descripcion || '').length > 40 ? item.descripcion.substring(0,40)+'…' : item.descripcion, tcols[0], y + 4.2)
         doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
-        const skuTrunc = (item.sku || '').length > 18 ? item.sku.substring(0, 18) + '…' : item.sku
-        doc.text(skuTrunc, tcols[1], y + 4.2)
+        doc.text((item.sku || '').length > 18 ? item.sku.substring(0,18)+'…' : item.sku, tcols[1], y + 4.2)
         doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
         doc.text(String(item.cantidad), tcols[2], y + 4.2, { align: 'right' })
         doc.text(item.um || '', tcols[3], y + 4.2)
@@ -468,17 +465,14 @@ Formato exacto:
         y += rh; rowIdx++
       })
 
-      // Líneas extra
       this.lineasExtra.forEach(linea => {
         if (!linea.descripcion && !linea.precioMXN) return
-        const rh = 6.5
-        const tot = (linea.precioMXN || 0) * (linea.cantidad || 1)
+        const rh = 6.5, tot = (linea.precioMXN || 0) * (linea.cantidad || 1)
         if (rowIdx % 2 === 0) { doc.setFillColor(248, 248, 245) } else { doc.setFillColor(255, 255, 255) }
         doc.rect(mg, y, W - mg * 2, rh, 'F')
         doc.setDrawColor(210, 210, 210); doc.setLineWidth(0.2); doc.rect(mg, y, W - mg * 2, rh)
         doc.setFontSize(6.5); doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
-        const descTrunc = (linea.descripcion || '').length > 40 ? linea.descripcion.substring(0, 40) + '…' : linea.descripcion
-        doc.text(descTrunc, tcols[0], y + 4.2)
+        doc.text((linea.descripcion || '').length > 40 ? linea.descripcion.substring(0,40)+'…' : linea.descripcion, tcols[0], y + 4.2)
         doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
         doc.text(linea.sku || '', tcols[1], y + 4.2)
         doc.setFont('helvetica', 'normal'); doc.setTextColor(80, 80, 80)
@@ -490,7 +484,6 @@ Formato exacto:
         y += rh; rowIdx++
       })
 
-      // Envío
       if (this.form.envio > 0) {
         const rh = 6.5
         if (rowIdx % 2 === 0) { doc.setFillColor(248, 248, 245) } else { doc.setFillColor(255, 255, 255) }
@@ -511,7 +504,6 @@ Formato exacto:
 
       y += 3
 
-      // TÉRMINOS + TOTALES
       const tw = 72, tx = W - mg - tw
       const terminos = localStorage.getItem('ins_terminos') || TERMINOS_DEFAULT
       const termLines = doc.splitTextToSize(terminos, tx - mg - 6)
@@ -542,7 +534,6 @@ Formato exacto:
 
       y += termH + 10
 
-      // FOOTER
       doc.addImage(logoUrl, 'PNG', W / 2 - 8, y, 16, 13)
       doc.setFontSize(8); doc.setFont('helvetica', 'bold'); doc.setTextColor(...NV)
       doc.text('INERSUS.MX', W / 2, y + 16, { align: 'center' })
@@ -613,8 +604,8 @@ Formato exacto:
 .row-extra { background: #fffbeb; border-left: 3px solid #f59e0b; }
 .center { text-align: center; }
 .right { text-align: right; }
-.sku { font-weight: 700; color: #0d2240; font-size: 11px; min-width: 120px; }
-.desc { color: #444; min-width: 180px; }
+.sku { font-weight: 700; color: #0d2240; font-size: 11px; min-width: 110px; }
+.desc { color: #444; min-width: 160px; }
 .muted { color: #999; }
 .bold-blue { color: #1a5276; font-weight: 700; }
 .bold-navy { color: #0d2240; font-weight: 800; }
@@ -622,6 +613,9 @@ Formato exacto:
 .cell-input { width: 100%; border: none; background: transparent; font-size: 12px; color: #444; padding: 2px 4px; border-radius: 4px; outline: none; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
 .cell-input:focus { background: #f0f4ff; border: 1px solid #0d2240; }
 .sku-input { font-weight: 700; color: #0d2240; font-size: 11px; }
+
+.precio-extra-input { display: flex; align-items: center; gap: 3px; justify-content: flex-end; color: #1a5276; font-weight: 700; }
+.precio-extra-input span { font-size: 12px; }
 
 .btn-remove-row { background: none; border: none; color: #dc2626; cursor: pointer; font-size: 13px; padding: 2px 6px; border-radius: 4px; }
 .btn-remove-row:hover { background: #fef2f2; }
