@@ -11,9 +11,11 @@
       <div class="login-logo">INS</div>
       <h2>Inersus</h2>
       <p>Cotizador interno — solo equipo Inersus</p>
-      <input type="text" v-model="user" placeholder="Usuario" @keydown.enter="doLogin" />
-      <input type="password" v-model="pass" placeholder="Contraseña" @keydown.enter="doLogin" />
-      <button class="login-btn" @click="doLogin">Entrar</button>
+      <input type="text" v-model="user" placeholder="Usuario" @keydown.enter="doLogin" :disabled="loading" />
+      <input type="password" v-model="pass" placeholder="Contraseña" @keydown.enter="doLogin" :disabled="loading" />
+      <button class="login-btn" @click="doLogin" :disabled="loading">
+        {{ loading ? 'Entrando...' : 'Entrar' }}
+      </button>
       <div class="login-error" v-if="error">Usuario o contraseña incorrectos</div>
     </div>
   </div>
@@ -22,22 +24,46 @@
 <script setup>
 import { ref } from 'vue'
 import Sidebar from './components/Sidebar.vue'
-
-const USERS = { 'inersus': 'kolosal2026', 'ventas': 'bombeo2026', 'miguel': 'inersus123' }
+import { supabase } from './models/supabase.js'
 
 const loggedIn = ref(!!sessionStorage.getItem('ins_u'))
 const user = ref('')
 const pass = ref('')
 const error = ref(false)
+const loading = ref(false)
 
-function doLogin() {
+async function doLogin() {
   const u = user.value.trim().toLowerCase()
-  if (USERS[u] && USERS[u] === pass.value) {
-    sessionStorage.setItem('ins_u', u)
-    loggedIn.value = true
-    error.value = false
-  } else {
+  if (!u || !pass.value) return
+  loading.value = true
+  error.value = false
+
+  try {
+    const { data, error: err } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('username', u)
+      .eq('password', pass.value)
+      .eq('activo', true)
+      .single()
+
+    if (err || !data) {
+      error.value = true
+    } else {
+      sessionStorage.setItem('ins_u', data.username)
+      sessionStorage.setItem('ins_rol', data.rol)
+      sessionStorage.setItem('ins_sucursal', data.sucursal)
+      sessionStorage.setItem('ins_nombre', data.nombre)
+      sessionStorage.setItem('ins_uid', data.id)
+      // Cargar preferencias del usuario en localStorage
+      if (data.terminos) localStorage.setItem('ins_terminos', data.terminos)
+      if (data.tdc) localStorage.setItem('ins_tdc', data.tdc)
+      loggedIn.value = true
+    }
+  } catch (e) {
     error.value = true
+  } finally {
+    loading.value = false
   }
 }
 </script>
