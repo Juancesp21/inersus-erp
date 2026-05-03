@@ -1,53 +1,75 @@
 <template>
-  <aside class="sidebar">
-    <div class="sidebar-logo">
-      <div class="logo-icon">INS</div>
-      <div>
-        <div class="logo-text">INERSUS</div>
-        <div class="logo-sub">ERP Solar</div>
+  <div>
+    <!-- OVERLAY móvil -->
+    <div class="sidebar-overlay" v-if="menuOpen" @click="menuOpen = false"></div>
+
+    <!-- TOPBAR móvil -->
+    <div class="mobile-topbar">
+      <button class="hamburger" @click="menuOpen = !menuOpen">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="mobile-logo">
+        <div class="logo-icon">INS</div>
+        <span class="logo-text">INERSUS</span>
+      </div>
+      <div class="mobile-user">
+        <div class="user-avatar">{{ userInitial }}</div>
       </div>
     </div>
 
-    <nav class="sidebar-nav">
-      <router-link to="/cotizador" class="nav-item">
-        <span>💧</span>
-        <span>Cotizador</span>
-      </router-link>
-      <router-link to="/cotizador-proveedor" class="nav-item">
-        <span>📄</span>
-        <span>Quote Maker</span>
-      </router-link>
-      <router-link to="/catalogo" class="nav-item">
-        <span>📦</span>
-        <span>Catálogo</span>
-      </router-link>
-      <router-link to="/configuracion" class="nav-item">
-        <span>⚙️</span>
-        <span>Configuración</span>
-      </router-link>
-    </nav>
-
-    <div class="sidebar-footer">
-      <div class="sidebar-user">
-        <div class="user-avatar">{{ userInitial }}</div>
-        <div class="user-info">
-          <div class="user-name">{{ userName }}</div>
-          <div class="user-role">Asesor</div>
+    <!-- SIDEBAR -->
+    <aside class="sidebar" :class="{ 'open': menuOpen }">
+      <div class="sidebar-logo">
+        <div class="logo-icon">INS</div>
+        <div>
+          <div class="logo-text">INERSUS</div>
+          <div class="logo-sub">ERP Solar</div>
         </div>
       </div>
-      <button class="sidebar-logout" @click="logout" title="Salir">✕</button>
-    </div>
-  </aside>
+
+      <nav class="sidebar-nav">
+        <router-link to="/cotizador" class="nav-item" @click="menuOpen = false">
+          <span>💧</span>
+          <span>Cotizador</span>
+        </router-link>
+        <router-link to="/cotizador-proveedor" class="nav-item" @click="menuOpen = false">
+          <span>📄</span>
+          <span>Quote Creator</span>
+        </router-link>
+        <router-link to="/catalogo" class="nav-item" @click="menuOpen = false">
+          <span>📦</span>
+          <span>Catálogo</span>
+        </router-link>
+        <router-link to="/configuracion" class="nav-item" @click="menuOpen = false">
+          <span>⚙️</span>
+          <span>Configuración</span>
+        </router-link>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="sidebar-user">
+          <div class="user-avatar">{{ userInitial }}</div>
+          <div class="user-info">
+            <div class="user-name">{{ userName }}</div>
+            <div class="user-role">{{ userRol }}</div>
+          </div>
+        </div>
+        <button class="sidebar-logout" @click="logout" title="Salir">✕</button>
+      </div>
+    </aside>
+  </div>
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 
-const userName = sessionStorage.getItem('ins_u') || 'usuario'
+const userName = sessionStorage.getItem('ins_nombre') || sessionStorage.getItem('ins_u') || 'usuario'
+const userRol = sessionStorage.getItem('ins_rol') || 'Asesor'
 const userInitial = computed(() => userName[0].toUpperCase())
+const menuOpen = ref(false)
 
 function logout() {
-  sessionStorage.removeItem('ins_u')
+  sessionStorage.clear()
   location.reload()
 }
 </script>

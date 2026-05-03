@@ -179,3 +179,198 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 .mas-opciones { display: flex; justify-content: center; margin-top: 1rem; }
 .btn-mas { background: transparent; border: 1px solid var(--g100); border-radius: 20px; padding: 8px 24px; font-family: inherit; font-size: 13px; color: var(--g500); cursor: pointer; transition: all .15s; }
 .btn-mas:hover { border-color: var(--sky); color: var(--sky); }
+/* ==========================================
+   RESPONSIVE MÓVIL
+   ========================================== */
+
+/* TOPBAR MÓVIL — oculto en desktop */
+.mobile-topbar {
+  display: none;
+}
+
+@media (max-width: 768px) {
+
+  /* TOPBAR */
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    height: 56px;
+    background: var(--navy);
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 200;
+    gap: 12px;
+  }
+  .hamburger {
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+  .hamburger span {
+    display: block;
+    width: 22px;
+    height: 2px;
+    background: white;
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .mobile-logo {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+  }
+  .mobile-logo .logo-text {
+    font-size: 15px;
+    font-weight: 700;
+    color: white;
+  }
+  .mobile-user .user-avatar {
+    width: 30px;
+    height: 30px;
+    background: var(--gold);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--navy);
+  }
+
+  /* OVERLAY */
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 150;
+  }
+
+  /* SIDEBAR — desliza desde la izquierda */
+  .sidebar {
+    position: fixed;
+    top: 0; left: 0;
+    height: 100vh;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    z-index: 160;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  /* LAYOUT — sin margen izquierdo, con padding top para topbar */
+  .main-content {
+    margin-left: 0 !important;
+    padding-top: 56px;
+  }
+
+  /* VISTAS */
+  .view-container {
+    padding: 1rem;
+  }
+  .view-header h1 {
+    font-size: 18px;
+  }
+
+  /* CONFIGURACIÓN */
+  .config-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* COTIZADOR — panel único en móvil */
+  .cotizador {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .panel-left {
+    border-right: none;
+    border-bottom: 1px solid var(--g100);
+  }
+  .panel-right {
+    padding: 1rem;
+  }
+
+  /* TABLA FLUJOS */
+  .fgrid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  /* TOOLBAR */
+  .toolbar {
+    flex-direction: column;
+  }
+  .search-input {
+    width: 100%;
+  }
+
+  /* KCARD ACCIONES */
+  .kactions {
+    flex-wrap: wrap;
+  }
+
+  /* TABS */
+  .tabs {
+    width: 100%;
+    justify-content: stretch;
+  }
+  .tab {
+    flex: 1;
+    text-align: center;
+  }
+
+  /* QUOTE CREATOR — tabla scroll horizontal */
+  .table-wrapper {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* TOTALES */
+  .totales-row {
+    justify-content: stretch;
+  }
+  .totales-box {
+    width: 100%;
+    min-width: unset;
+  }
+
+  /* CARGOS */
+  .cargos-row {
+    flex-direction: column;
+  }
+  .cargo-input {
+    width: 100%;
+  }
+
+  /* FORM GRID */
+  .form-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .form-full {
+    grid-column: 1 !important;
+  }
+
+  /* INPUTS más grandes para tocar */
+  input, select, textarea {
+    font-size: 16px !important; /* evita zoom en iOS */
+    min-height: 44px;
+  }
+  .btn-save, .btn-calc, .btn-pdf, .login-btn {
+    min-height: 44px;
+    font-size: 15px;
+  }
+
+  /* LOGIN */
+  .login-box {
+    width: 90%;
+    max-width: 340px;
+    padding: 2rem 1.5rem;
+  }
+}
