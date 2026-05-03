@@ -9,7 +9,7 @@
         <span></span><span></span><span></span>
       </button>
       <div class="mobile-logo">
-        <div class="logo-icon">INS</div>
+        <img src="/inersussolo.png" alt="Inersus" style="width:28px;height:28px;object-fit:contain;" />
         <span class="logo-text">INERSUS</span>
       </div>
       <div class="mobile-user">
@@ -20,7 +20,7 @@
     <!-- SIDEBAR -->
     <aside class="sidebar" :class="{ 'open': menuOpen }">
       <div class="sidebar-logo">
-        <div class="logo-icon">INS</div>
+        <img src="/inersussolo.png" alt="Inersus" style="width:34px;height:34px;object-fit:contain;border-radius:50%;background:white;padding:2px;" />
         <div>
           <div class="logo-text">INERSUS</div>
           <div class="logo-sub">ERP Solar</div>

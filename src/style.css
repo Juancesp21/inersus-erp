@@ -374,3 +374,30 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
     padding: 2rem 1.5rem;
   }
 }
+
+/* FLUJOS MÓVIL — layout vertical más claro */
+@media (max-width: 768px) {
+  .fgrid {
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+  }
+  .fcell.fh {
+    font-size: 9px;
+    padding: .4rem .5rem;
+  }
+  .fv {
+    font-size: 16px;
+  }
+  .fcell {
+    padding: .6rem .5rem;
+  }
+}
+
+/* LOGIN LOGO */
+.login-logo-img {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin: 0 auto 1rem;
+  display: block;
+}

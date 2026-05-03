@@ -8,7 +8,7 @@
 
   <div id="login-screen" v-else>
     <div class="login-box">
-      <div class="login-logo">INS</div>
+      <img src="/inersussolo.png" alt="Inersus" class="login-logo-img" />
       <h2>Inersus</h2>
       <p>Cotizador interno — solo equipo Inersus</p>
       <input type="text" v-model="user" placeholder="Usuario" @keydown.enter="doLogin" :disabled="loading" />
@@ -55,7 +55,6 @@ async function doLogin() {
       sessionStorage.setItem('ins_sucursal', data.sucursal)
       sessionStorage.setItem('ins_nombre', data.nombre)
       sessionStorage.setItem('ins_uid', data.id)
-      // Cargar preferencias del usuario en localStorage
       if (data.terminos) localStorage.setItem('ins_terminos', data.terminos)
       if (data.tdc) localStorage.setItem('ins_tdc', data.tdc)
       loggedIn.value = true
