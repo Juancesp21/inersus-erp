@@ -375,21 +375,43 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
   }
 }
 
-/* FLUJOS MÓVIL — layout vertical más claro */
+/* FLUJOS MÓVIL — lista vertical etiqueta + valor */
 @media (max-width: 768px) {
   .fgrid {
-    grid-template-columns: 1fr 1fr;
-    gap: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: none;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--g100);
   }
-  .fcell.fh {
-    font-size: 9px;
-    padding: .4rem .5rem;
-  }
-  .fv {
-    font-size: 16px;
-  }
+  .fcell.fh { display: none; }
   .fcell {
-    padding: .6rem .5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .6rem .9rem;
+    border-bottom: 1px solid var(--g100);
+    background: white;
+  }
+  .fcell:last-child { border-bottom: none; }
+  .fcell:nth-child(odd) { background: var(--g50); }
+  .fcell::before {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--g300);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .fcell:nth-child(2)::before { content: 'L / segundo'; }
+  .fcell:nth-child(3)::before { content: 'L / minuto'; }
+  .fcell:nth-child(4)::before { content: 'L / día'; }
+  .fcell:nth-child(5)::before { content: 'L / semana'; }
+  .fv {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
   }
 }
 
