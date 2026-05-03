@@ -15,6 +15,7 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 #login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--navy); }
 .login-box { background: white; border-radius: 12px; padding: 2.5rem 2rem; width: 320px; text-align: center; }
 .login-logo { width: 52px; height: 52px; background: var(--gold); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; color: var(--navy); margin: 0 auto 1rem; }
+.login-logo-img { width: 80px; height: 80px; object-fit: contain; margin: 0 auto 1rem; display: block; }
 .login-box h2 { font-size: 18px; font-weight: 600; color: var(--navy); margin-bottom: 4px; }
 .login-box p { font-size: 12px; color: var(--g300); margin-bottom: 1.5rem; }
 .login-box input { width: 100%; border: 1px solid var(--g100); border-radius: 6px; padding: 9px 12px; font-family: inherit; font-size: 14px; margin-bottom: 10px; color: var(--g700); }
@@ -163,9 +164,10 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 .empty { display: flex; align-items: center; justify-content: center; min-height: 320px; color: var(--g300); text-align: center; }
 .loading { padding: 2rem; text-align: center; color: var(--g300); font-size: 13px; }
 
-/* HISTORIAL dentro de Cotizador */
+/* HISTORIAL */
 .historial-section { margin-top: 2rem; }
 .historial-section h3 { font-size: 15px; font-weight: 600; color: var(--navy); margin-bottom: 1rem; }
+
 /* DESGLOSE ACCESORIOS */
 .desglose { padding: .75rem 1.25rem; border-bottom: 1px solid var(--g100); }
 .desglose-title { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--g300); margin-bottom: .5rem; }
@@ -179,18 +181,13 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
 .mas-opciones { display: flex; justify-content: center; margin-top: 1rem; }
 .btn-mas { background: transparent; border: 1px solid var(--g100); border-radius: 20px; padding: 8px 24px; font-family: inherit; font-size: 13px; color: var(--g500); cursor: pointer; transition: all .15s; }
 .btn-mas:hover { border-color: var(--sky); color: var(--sky); }
+
 /* ==========================================
    RESPONSIVE MÓVIL
    ========================================== */
-
-/* TOPBAR MÓVIL — oculto en desktop */
-.mobile-topbar {
-  display: none;
-}
+.mobile-topbar { display: none; }
 
 @media (max-width: 768px) {
-
-  /* TOPBAR */
   .mobile-topbar {
     display: flex;
     align-items: center;
@@ -243,16 +240,12 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
     font-size: 12px;
     color: var(--navy);
   }
-
-  /* OVERLAY */
   .sidebar-overlay {
     position: fixed;
     inset: 0;
     background: rgba(0,0,0,0.5);
     z-index: 150;
   }
-
-  /* SIDEBAR — desliza desde la izquierda */
   .sidebar {
     position: fixed;
     top: 0; left: 0;
@@ -262,164 +255,27 @@ body { font-family: 'DM Sans', sans-serif; background: var(--cream); color: var(
     transition: transform 0.25s ease;
     z-index: 160;
   }
-  .sidebar.open {
-    transform: translateX(0);
-  }
-
-  /* LAYOUT — sin margen izquierdo, con padding top para topbar */
-  .main-content {
-    margin-left: 0 !important;
-    padding-top: 56px;
-  }
-
-  /* VISTAS */
-  .view-container {
-    padding: 1rem;
-  }
-  .view-header h1 {
-    font-size: 18px;
-  }
-
-  /* CONFIGURACIÓN */
-  .config-grid {
-    grid-template-columns: 1fr;
-  }
-
-  /* COTIZADOR — panel único en móvil */
-  .cotizador {
-    grid-template-columns: 1fr;
-    min-height: auto;
-  }
-  .panel-left {
-    border-right: none;
-    border-bottom: 1px solid var(--g100);
-  }
-  .panel-right {
-    padding: 1rem;
-  }
-
-  /* TABLA FLUJOS */
-  .fgrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  /* TOOLBAR */
-  .toolbar {
-    flex-direction: column;
-  }
-  .search-input {
-    width: 100%;
-  }
-
-  /* KCARD ACCIONES */
-  .kactions {
-    flex-wrap: wrap;
-  }
-
-  /* TABS */
-  .tabs {
-    width: 100%;
-    justify-content: stretch;
-  }
-  .tab {
-    flex: 1;
-    text-align: center;
-  }
-
-  /* QUOTE CREATOR — tabla scroll horizontal */
-  .table-wrapper {
-    overflow-x: auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
-  /* TOTALES */
-  .totales-row {
-    justify-content: stretch;
-  }
-  .totales-box {
-    width: 100%;
-    min-width: unset;
-  }
-
-  /* CARGOS */
-  .cargos-row {
-    flex-direction: column;
-  }
-  .cargo-input {
-    width: 100%;
-  }
-
-  /* FORM GRID */
-  .form-grid {
-    grid-template-columns: 1fr !important;
-  }
-  .form-full {
-    grid-column: 1 !important;
-  }
-
-  /* INPUTS más grandes para tocar */
-  input, select, textarea {
-    font-size: 16px !important; /* evita zoom en iOS */
-    min-height: 44px;
-  }
-  .btn-save, .btn-calc, .btn-pdf, .login-btn {
-    min-height: 44px;
-    font-size: 15px;
-  }
-
-  /* LOGIN */
-  .login-box {
-    width: 90%;
-    max-width: 340px;
-    padding: 2rem 1.5rem;
-  }
-}
-
-/* FLUJOS MÓVIL — lista vertical etiqueta + valor */
-@media (max-width: 768px) {
-  .fgrid {
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    background: none;
-    border-radius: 8px;
-    overflow: hidden;
-    border: 1px solid var(--g100);
-  }
-  .fcell.fh { display: none; }
-  .fcell {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: .6rem .9rem;
-    border-bottom: 1px solid var(--g100);
-    background: white;
-  }
-  .fcell:last-child { border-bottom: none; }
-  .fcell:nth-child(odd) { background: var(--g50); }
-  .fcell::before {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--g300);
-    text-transform: uppercase;
-    letter-spacing: .05em;
-  }
-  .fcell:nth-child(2)::before { content: 'L / segundo'; }
-  .fcell:nth-child(3)::before { content: 'L / minuto'; }
-  .fcell:nth-child(4)::before { content: 'L / día'; }
-  .fcell:nth-child(5)::before { content: 'L / semana'; }
-  .fv {
-    font-size: 15px;
-    font-weight: 600;
-    color: var(--navy);
-  }
-}
-
-/* LOGIN LOGO */
-.login-logo-img {
-  width: 80px;
-  height: 80px;
-  object-fit: contain;
-  margin: 0 auto 1rem;
-  display: block;
+  .sidebar.open { transform: translateX(0); }
+  .main-content { margin-left: 0 !important; padding-top: 56px; }
+  .view-container { padding: 1rem; }
+  .view-header h1 { font-size: 18px; }
+  .config-grid { grid-template-columns: 1fr; }
+  .cotizador { grid-template-columns: 1fr; min-height: auto; }
+  .panel-left { border-right: none; border-bottom: 1px solid var(--g100); }
+  .panel-right { padding: 1rem; }
+  .toolbar { flex-direction: column; }
+  .search-input { width: 100%; }
+  .kactions { flex-wrap: wrap; }
+  .tabs { width: 100%; justify-content: stretch; }
+  .tab { flex: 1; text-align: center; }
+  .table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .totales-row { justify-content: stretch; }
+  .totales-box { width: 100%; min-width: unset; }
+  .cargos-row { flex-direction: column; }
+  .cargo-input { width: 100%; }
+  .form-grid { grid-template-columns: 1fr !important; }
+  .form-full { grid-column: 1 !important; }
+  input, select, textarea { font-size: 16px !important; min-height: 44px; }
+  .btn-save, .btn-calc, .btn-pdf, .login-btn { min-height: 44px; font-size: 15px; }
+  .login-box { width: 90%; max-width: 340px; padding: 2rem 1.5rem; }
 }
