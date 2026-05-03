@@ -8,9 +8,9 @@
 
   <div id="login-screen" v-else>
     <div class="login-box">
-      <img src="/inersussolo.png" alt="Inersus" class="login-logo-img" />
-      <h2>Inersus</h2>
-      <p>Cotizador interno — solo equipo Inersus</p>
+      <img src="/inersussolo-rb.png" alt="Inersus" class="login-logo-img" />
+      <h2>INERSUS</h2>
+      <p>Uso exclusivo interno</p>
       <input type="text" v-model="user" placeholder="Usuario" @keydown.enter="doLogin" :disabled="loading" />
       <input type="password" v-model="pass" placeholder="Contraseña" @keydown.enter="doLogin" :disabled="loading" />
       <button class="login-btn" @click="doLogin" :disabled="loading">
