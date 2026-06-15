@@ -23,7 +23,7 @@
 
     <div class="fsec">
       <div class="ftitle">Agua generada · CDT={{ cdt.toFixed(0) }}m · 6 hrs/día</div>
-      <!-- DESKTOP: grid 4 columnas -->
+      <!-- DESKTOP -->
       <div class="fgrid desktop-fgrid">
         <div class="fcell fh">L/seg</div>
         <div class="fcell fh">L/min</div>
@@ -34,7 +34,7 @@
         <div class="fcell"><div class="fv">{{ caudales.lpd.toLocaleString() }}</div></div>
         <div class="fcell"><div class="fv">{{ caudales.lsem.toLocaleString() }}</div></div>
       </div>
-      <!-- MÓVIL: lista vertical -->
+      <!-- MÓVIL -->
       <div class="fgrid mobile-fgrid">
         <div class="fcell frow">
           <span class="flbl">L / segundo</span>
@@ -96,9 +96,18 @@
       <div class="resumen-text">{{ resumen }}</div>
     </div>
 
+    <!-- ODOO RESULT -->
+    <div class="odoo-result" v-if="odooResult">
+      <span>✓ Cotización creada en Odoo:</span>
+      <a :href="odooResult.url" target="_blank" class="odoo-link">{{ odooResult.nombre }}</a>
+    </div>
+
     <div class="kactions">
       <button class="btn-pdf" @click="descargarPDF">Descargar PDF</button>
       <button class="btn-sec" @click="$emit('guardar', kit)">Guardar</button>
+      <button class="btn-odoo" @click="enviarOdoo" :disabled="enviandoOdoo">
+        {{ enviandoOdoo ? 'Enviando...' : '🔗 Enviar a Odoo' }}
+      </button>
     </div>
   </div>
 </template>
@@ -110,6 +119,8 @@ import { generarPDF } from '../controllers/pdf.js'
 const props = defineProps(['kit', 'rank', 'label', 'cdt', 'caudales', 'margen', 'extras', 'params'])
 const emit = defineEmits(['pdf', 'guardar'])
 const copied = ref(false)
+const enviandoOdoo = ref(false)
+const odooResult = ref(null)
 
 const tieneAccesorios = computed(() => {
   const e = props.extras
@@ -134,6 +145,44 @@ async function copiar() {
   setTimeout(() => { copied.value = false }, 2000)
 }
 
+async function enviarOdoo() {
+  enviandoOdoo.value = true
+  odooResult.value = null
+  try {
+    const lineas = [
+      {
+        descripcion: `${props.kit.name} — Sistema de bombeo solar`,
+        cantidad: 1,
+        precio: props.kit.precio / 1.16
+      }
+    ]
+    const e = props.extras
+    if (e?.costoCable > 0) lineas.push({ descripcion: `Cable sumergible ${e.ctipo} × ${e.cmts}m`, cantidad: 1, precio: e.costoCable / 1.16 })
+    if (e?.costoTuberia > 0) lineas.push({ descripcion: `Tubería ${e.diametro}" Serie ${e.tuberiaSerie} × ${e.tuberiaTramos} tramos`, cantidad: 1, precio: e.costoTuberia / 1.16 })
+    if (e?.costoAdaptador > 0) lineas.push({ descripcion: `Adaptador ${e.adaptador} ${e.diametro}"`, cantidad: 1, precio: e.costoAdaptador / 1.16 })
+    if (e?.costoValvula > 0) lineas.push({ descripcion: `Válvula check ${e.diametro}"`, cantidad: 1, precio: e.costoValvula / 1.16 })
+    if (e?.bases > 0) lineas.push({ descripcion: 'Bases inclinadas', cantidad: 1, precio: e.bases / 1.16 })
+
+    const res = await fetch('/.netlify/functions/odoo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'create_quotation',
+        payload: {
+          cliente_id: props.params.clienteId || null,
+          cliente_nombre: props.params.cliente || 'A quien corresponda',
+          lineas
+        }
+      })
+    })
+    odooResult.value = await res.json()
+  } catch (err) {
+    alert('Error al enviar a Odoo: ' + err.message)
+  } finally {
+    enviandoOdoo.value = false
+  }
+}
+
 function descargarPDF() {
   generarPDF({
     kit: props.kit,
@@ -152,6 +201,38 @@ function descargarPDF() {
 
 <style scoped>
 .mobile-fgrid { display: none; }
+
+.btn-odoo {
+  background: #714B67;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  padding: 8px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-odoo:hover { background: #5a3a52; }
+.btn-odoo:disabled { opacity: .6; cursor: not-allowed; }
+
+.odoo-result {
+  margin: 0 1.25rem .5rem;
+  padding: 8px 12px;
+  background: #e6f4ea;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #1a7a4a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.odoo-link {
+  font-weight: 700;
+  color: #1a7a4a;
+  text-decoration: underline;
+}
 
 @media (max-width: 768px) {
   .desktop-fgrid { display: none; }
