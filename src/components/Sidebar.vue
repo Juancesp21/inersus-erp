@@ -30,7 +30,7 @@
       <nav class="sidebar-nav">
         <router-link to="/cotizador" class="nav-item" @click="menuOpen = false">
           <span>💧</span>
-          <span>Cotizador</span>
+          <span>Cotizaaador</span>
         </router-link>
         <router-link to="/cotizador-proveedor" class="nav-item" @click="menuOpen = false">
           <span>📄</span>

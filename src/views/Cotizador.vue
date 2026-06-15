@@ -4,7 +4,31 @@
       <div class="section">
         <div class="slabel">Datos del cliente</div>
         <div class="card">
-          <div class="field"><label>Nombre / Empresa</label><input v-model="form.cliente" placeholder="A quien corresponda"/></div>
+          <!-- AUTOCOMPLETE CLIENTE -->
+          <div class="field" style="position:relative">
+            <label>Nombre / Empresa</label>
+            <input
+              v-model="form.cliente"
+              placeholder="Buscar cliente en Odoo..."
+              @input="buscarCliente"
+              @blur="setTimeout(() => { showSuggestions = false }, 200)"
+              autocomplete="off"
+            />
+            <div class="client-suggestions" v-if="showSuggestions && clienteSuggestions.length">
+              <div
+                class="client-suggestion-item"
+                v-for="c in clienteSuggestions"
+                :key="c.id"
+                @mousedown.prevent="seleccionarCliente(c)"
+              >
+                <div class="cs-name">{{ c.name }}</div>
+                <div class="cs-detail">{{ c.city || '' }}{{ c.vat ? ' · ' + c.vat : '' }}</div>
+              </div>
+            </div>
+            <div class="client-suggestions" v-if="showSuggestions && buscandoCliente">
+              <div class="cs-loading">Buscando...</div>
+            </div>
+          </div>
           <div class="field"><label>Ciudad, Estado</label><input v-model="form.ciudad" placeholder="Monterrey, NL"/></div>
           <div class="field"><label>Asesor</label><input v-model="form.asesor" /></div>
         </div>
@@ -135,7 +159,7 @@
             :cdt="cdtData.cdt"
             :caudales="kit.caudales"
             :extras="kit.extras"
-            :params="{ nd: form.nd, dt: form.dt, tirada: form.tirada, cliente: form.cliente, ciudad: form.ciudad, asesor: form.asesor }"
+            :params="{ nd: form.nd, dt: form.dt, tirada: form.tirada, cliente: form.cliente, ciudad: form.ciudad, asesor: form.asesor, clienteId: form.clienteId }"
             @guardar="guardar"
           />
         </div>
@@ -160,7 +184,7 @@ import {
 } from '../controllers/precios.js'
 
 const form = ref({
-  cliente: '', ciudad: 'Monterrey, NL',
+  cliente: '', clienteId: null, ciudad: 'Monterrey, NL',
   asesor: localStorage.getItem('ins_asesor') || 'Ing. Miguel González',
   nd: 40, dt: 10, tirada: 50, presion: 0,
   ctipo: 'CABLE3X12A', cmts: 95, bases: 0,
@@ -173,6 +197,10 @@ const todasOpciones = ref([])
 const calculado = ref(false)
 const cargando = ref(true)
 const mostrarMas = ref(false)
+const clienteSuggestions = ref([])
+const showSuggestions = ref(false)
+const buscandoCliente = ref(false)
+let searchTimeout = null
 
 const cdtData = computed(() => calcularCDT({
   nd: form.value.nd, dt: form.value.dt,
@@ -182,15 +210,40 @@ const cdtData = computed(() => calcularCDT({
 
 const cableSugerido = computed(() => sugerirCable(form.value.nd, form.value.tirada))
 const tramosSugeridosVal = computed(() => tramosSugeridos(form.value.nd))
-
-// Primeras 3 opciones visibles siempre
 const opcionesPrincipales = computed(() => todasOpciones.value.slice(0, 3))
-// Opciones extra (4 y 5)
 const opcionesExtra = computed(() => todasOpciones.value.slice(3, 5))
 const hayMas = computed(() => opcionesExtra.value.length > 0)
 const opcionesVisibles = computed(() =>
   mostrarMas.value ? [...opcionesPrincipales.value, ...opcionesExtra.value] : opcionesPrincipales.value
 )
+
+async function buscarCliente() {
+  form.value.clienteId = null
+  const q = form.value.cliente.trim()
+  if (q.length < 2) { showSuggestions.value = false; return }
+  clearTimeout(searchTimeout)
+  searchTimeout = setTimeout(async () => {
+    buscandoCliente.value = true
+    showSuggestions.value = true
+    try {
+      const res = await fetch('/.netlify/functions/odoo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'search_partners', payload: { query: q } })
+      })
+      clienteSuggestions.value = await res.json()
+    } catch { clienteSuggestions.value = [] }
+    buscandoCliente.value = false
+  }, 350)
+}
+
+function seleccionarCliente(c) {
+  form.value.cliente = c.name
+  form.value.clienteId = c.id
+  if (c.city) form.value.ciudad = c.city
+  showSuggestions.value = false
+  clienteSuggestions.value = []
+}
 
 function upd() {
   form.value.cmts = cableSugerido.value
@@ -215,24 +268,14 @@ function buildExtras(kit) {
 async function calcular() {
   mostrarMas.value = false
   const { cdt } = cdtData.value
-
   const aptos = kits.value
     .map(k => ({ ...k, fr: flujoEnCDT(k, cdt) }))
     .filter(k => k.fr > 0)
-
   if (!aptos.length) { todasOpciones.value = []; calculado.value = true; return }
-
-  // Opción óptima = menor precio que funciona
   const porPrecio = [...aptos].sort((a, b) => a.precio - b.precio)
   const optima = porPrecio[0]
-
-  // Resto ordenados de menor a mayor caudal, sin repetir óptima
-  const resto = [...aptos]
-    .filter(k => k.id !== optima.id)
-    .sort((a, b) => a.fr - b.fr)
-
+  const resto = [...aptos].filter(k => k.id !== optima.id).sort((a, b) => a.fr - b.fr)
   const ordenados = [optima, ...resto].slice(0, 5)
-
   todasOpciones.value = ordenados.map((k, i) => {
     const extras = buildExtras(k)
     return {
@@ -265,3 +308,29 @@ onMounted(async () => {
   upd()
 })
 </script>
+
+<style scoped>
+.client-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0; right: 0;
+  background: white;
+  border: 1px solid var(--g100);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  z-index: 50;
+  max-height: 240px;
+  overflow-y: auto;
+}
+.client-suggestion-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--g50);
+  transition: background 0.15s;
+}
+.client-suggestion-item:hover { background: var(--g50); }
+.client-suggestion-item:last-child { border-bottom: none; }
+.cs-name { font-size: 13px; font-weight: 500; color: var(--g700); }
+.cs-detail { font-size: 11px; color: var(--g300); margin-top: 1px; }
+.cs-loading { padding: 10px 12px; font-size: 12px; color: var(--g300); }
+</style>
