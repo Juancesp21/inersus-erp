@@ -162,7 +162,7 @@ export async function handler(event) {
 
       // Obtener número real de cotización
       const numRaw = await rpc('sale.order', 'read', [[saleId]], { fields: ['name'] })
-      const numMatch = numRaw.match(/>(S[0-9]+)<\/string>/)
+      const numMatch = numRaw.match(/S\d+/)
       const nombre = numMatch ? numMatch[1] : `S${saleId}`
 
       return {
