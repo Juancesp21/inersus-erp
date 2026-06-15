@@ -171,6 +171,7 @@ async function enviarOdoo() {
         payload: {
           cliente_id: props.params.clienteId || null,
           cliente_nombre: props.params.cliente || 'A quien corresponda',
+          kit_id: props.kit.id || '',
           lineas
         }
       })
