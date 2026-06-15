@@ -34,7 +34,7 @@
         </router-link>
         <router-link to="/cotizador-proveedor" class="nav-item" @click="menuOpen = false">
           <span>📄</span>
-          <span>Quote Creatorrrr</span>
+          <span>Quote Creator</span>
         </router-link>
         <router-link to="/catalogo" class="nav-item" @click="menuOpen = false">
           <span>📦</span>
