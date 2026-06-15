@@ -141,8 +141,8 @@ export async function handler(event) {
       const templateName = kitIdToTemplateName(kit_id)
       if (templateName) {
         const tplRaw = await rpc('sale.quote.template', 'search', [[['name', '=', templateName]]])
-        const tplIds = extractInts(tplRaw)
-        if (tplIds.length) templateId = tplIds[0]
+        const tplMatch = tplRaw.match(/<data>[\s\S]*?<value><int>(\d+)<\/int><\/value>/)
+        if (tplMatch) templateId = parseInt(tplMatch[1])
       }
 
       // Crear cotización con plantilla — Odoo aplica las líneas automáticamente
@@ -158,7 +158,6 @@ export async function handler(event) {
       }
 
       const saleRaw = await rpc('sale.order', 'create', [orderData])
-      return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ debug: saleRaw.substring(0, 300) }) }
       const saleId = extractInt(saleRaw)
 
       // Obtener número real de cotización
