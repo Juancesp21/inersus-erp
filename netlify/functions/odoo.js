@@ -158,6 +158,7 @@ export async function handler(event) {
       }
 
       const saleRaw = await rpc('sale.order', 'create', [orderData])
+      return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ debug: saleRaw.substring(0, 300) }) }
       const saleId = extractInt(saleRaw)
 
       // Obtener número real de cotización
