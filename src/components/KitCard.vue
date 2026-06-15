@@ -23,7 +23,8 @@
 
     <div class="fsec">
       <div class="ftitle">Agua generada · CDT={{ cdt.toFixed(0) }}m · 6 hrs/día</div>
-      <div class="fgrid">
+      <!-- DESKTOP: grid 4 columnas -->
+      <div class="fgrid desktop-fgrid">
         <div class="fcell fh">L/seg</div>
         <div class="fcell fh">L/min</div>
         <div class="fcell fh">L/día</div>
@@ -32,6 +33,25 @@
         <div class="fcell"><div class="fv">{{ caudales.lpm }}</div></div>
         <div class="fcell"><div class="fv">{{ caudales.lpd.toLocaleString() }}</div></div>
         <div class="fcell"><div class="fv">{{ caudales.lsem.toLocaleString() }}</div></div>
+      </div>
+      <!-- MÓVIL: lista vertical -->
+      <div class="fgrid mobile-fgrid">
+        <div class="fcell frow">
+          <span class="flbl">L / segundo</span>
+          <span class="fv">{{ caudales.lps }}</span>
+        </div>
+        <div class="fcell frow">
+          <span class="flbl">L / minuto</span>
+          <span class="fv">{{ caudales.lpm }}</span>
+        </div>
+        <div class="fcell frow">
+          <span class="flbl">L / día</span>
+          <span class="fv">{{ caudales.lpd.toLocaleString() }}</span>
+        </div>
+        <div class="fcell frow">
+          <span class="flbl">L / semana</span>
+          <span class="fv">{{ caudales.lsem.toLocaleString() }}</span>
+        </div>
       </div>
     </div>
 
@@ -129,3 +149,41 @@ function descargarPDF() {
   })
 }
 </script>
+
+<style scoped>
+.mobile-fgrid { display: none; }
+
+@media (max-width: 768px) {
+  .desktop-fgrid { display: none; }
+  .mobile-fgrid {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--g100);
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .fcell.frow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .65rem .9rem;
+    border-bottom: 1px solid var(--g100);
+    background: white;
+  }
+  .fcell.frow:nth-child(odd) { background: var(--g50); }
+  .fcell.frow:last-child { border-bottom: none; }
+  .flbl {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--g300);
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+  .fv {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--navy);
+    font-family: 'DM Mono', monospace;
+  }
+}
+</style>
