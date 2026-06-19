@@ -8,6 +8,11 @@ export async function handler(event) {
   const ODOO_USER = 'espinozaj@inersus.mx'
   const ODOO_KEY = process.env.ODOO_API_KEY
 
+  const CORS = { 'Access-Control-Allow-Origin': '*' }
+
+  // Quita espacios entre tags para que los regex no dependan del formato del XML
+  const norm = (t) => t.replace(/>\s+</g, '><')
+
   function jsonToXml(val) {
     if (Array.isArray(val)) {
       return `<array><data>${val.map(v => `<value>${jsonToXml(v)}</value>`).join('')}</data></array>`
@@ -30,23 +35,55 @@ export async function handler(event) {
     return `<string>${val}</string>`
   }
 
+  // Extractores fault-aware: si Odoo devuelve <fault>, no agarramos el faultCode por error
   function extractInt(text) {
-    const m = text.match(/<value><int>(\d+)<\/int><\/value>/)
+    const t = norm(text)
+    if (t.includes('<fault>')) return null
+    const m = t.match(/<value><int>(\d+)<\/int><\/value>/)
     return m ? parseInt(m[1]) : null
   }
 
   function extractInts(text) {
+    const t = norm(text)
+    if (t.includes('<fault>')) return []
     const ids = []
     const regex = /<value><int>(\d+)<\/int><\/value>/g
     let m
-    while ((m = regex.exec(text)) !== null) ids.push(parseInt(m[1]))
+    while ((m = regex.exec(t)) !== null) ids.push(parseInt(m[1]))
     return ids
   }
 
+  function extractFault(text) {
+    const m = norm(text).match(/<name>faultString<\/name><value><string>([\s\S]*?)<\/string>/)
+    return m ? m[1] : null
+  }
+
   function kitIdToTemplateName(kitId) {
-    const m = kitId.match(/^KOLOS(\d+)-(\d+)$/)
+    const m = (kitId || '').match(/^KOLOS(\d+)-(\d+)$/)
     if (m) return `KIT KOLOS ${m[1]}-${m[2]}`
     return null
+  }
+
+  // Parsea un search_read de lineas de plantilla
+  function parseTemplateLines(raw) {
+    const out = []
+    const n = norm(raw)
+    const structRegex = /<struct>([\s\S]*?)<\/struct>/g
+    let sm
+    while ((sm = structRegex.exec(n)) !== null) {
+      const b = sm[1]
+      const pid = b.match(/<name>product_id<\/name><value><array><data><value><int>(\d+)<\/int>/)
+      const qty = b.match(/<name>product_uom_qty<\/name><value>(?:<double>|<int>)([\d.]+)/)
+      const dty = b.match(/<name>display_type<\/name><value><string>([^<]*)<\/string>/)
+      const nme = b.match(/<name>name<\/name><value><string>([\s\S]*?)<\/string>/)
+      out.push({
+        product_id: pid ? parseInt(pid[1]) : false,
+        qty: qty ? parseFloat(qty[1]) : 1,
+        display_type: dty ? dty[1] : false,
+        name: nme ? nme[1] : ''
+      })
+    }
+    return out
   }
 
   try {
@@ -54,42 +91,33 @@ export async function handler(event) {
 
     // Auth XML-RPC
     const authBody = `<?xml version="1.0"?>
-<methodCall>
-  <methodName>authenticate</methodName>
-  <params>
-    <param><value><string>${ODOO_DB}</string></value></param>
-    <param><value><string>${ODOO_USER}</string></value></param>
-    <param><value><string>${ODOO_KEY}</string></value></param>
-    <param><value><struct></struct></value></param>
-  </params>
-</methodCall>`
+<methodCall><methodName>authenticate</methodName><params>
+<param><value><string>${ODOO_DB}</string></value></param>
+<param><value><string>${ODOO_USER}</string></value></param>
+<param><value><string>${ODOO_KEY}</string></value></param>
+<param><value><struct></struct></value></param>
+</params></methodCall>`
 
     const authRes = await fetch(`${ODOO_URL}/xmlrpc/2/common`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/xml' },
-      body: authBody
+      method: 'POST', headers: { 'Content-Type': 'text/xml' }, body: authBody
     })
     const uid = extractInt(await authRes.text())
-    if (!uid) return { statusCode: 401, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'Auth failed' }) }
+    console.log('[odoo] uid:', uid)
+    if (!uid) return { statusCode: 401, headers: CORS, body: JSON.stringify({ error: 'Auth failed' }) }
 
     async function rpc(model, method, args, kwargs = {}) {
       const body = `<?xml version="1.0"?>
-<methodCall>
-  <methodName>execute_kw</methodName>
-  <params>
-    <param><value><string>${ODOO_DB}</string></value></param>
-    <param><value><int>${uid}</int></value></param>
-    <param><value><string>${ODOO_KEY}</string></value></param>
-    <param><value><string>${model}</string></value></param>
-    <param><value><string>${method}</string></value></param>
-    <param><value>${jsonToXml(args)}</value></param>
-    <param><value>${jsonToXml(kwargs)}</value></param>
-  </params>
-</methodCall>`
+<methodCall><methodName>execute_kw</methodName><params>
+<param><value><string>${ODOO_DB}</string></value></param>
+<param><value><int>${uid}</int></value></param>
+<param><value><string>${ODOO_KEY}</string></value></param>
+<param><value><string>${model}</string></value></param>
+<param><value><string>${method}</string></value></param>
+<param><value>${jsonToXml(args)}</value></param>
+<param><value>${jsonToXml(kwargs)}</value></param>
+</params></methodCall>`
       const res = await fetch(`${ODOO_URL}/xmlrpc/2/object`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/xml' },
-        body
+        method: 'POST', headers: { 'Content-Type': 'text/xml' }, body
       })
       return await res.text()
     }
@@ -101,9 +129,10 @@ export async function handler(event) {
         { fields: ['id', 'name', 'city', 'vat'], limit: 8 }
       )
       const results = []
+      const n = norm(raw)
       const structRegex = /<struct>([\s\S]*?)<\/struct>/g
       let sm
-      while ((sm = structRegex.exec(raw)) !== null) {
+      while ((sm = structRegex.exec(n)) !== null) {
         const obj = {}
         const mr = /<member><name>([^<]+)<\/name><value>(?:<string>([^<]*)<\/string>|<int>(\d+)<\/int>)<\/value><\/member>/g
         let mm
@@ -112,7 +141,7 @@ export async function handler(event) {
         }
         if (obj.id) results.push(obj)
       }
-      return { statusCode: 200, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify(results) }
+      return { statusCode: 200, headers: CORS, body: JSON.stringify(results) }
     }
 
     // CREAR COTIZACIÓN
@@ -131,26 +160,26 @@ export async function handler(event) {
           partnerId = extractInt(createRaw)
         }
       }
-
+      console.log('[odoo] partnerId:', partnerId)
       if (!partnerId) {
-        return { statusCode: 400, headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ error: 'No partner' }) }
+        return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'No partner' }) }
       }
 
-      // Buscar plantilla
+      // Buscar plantilla — MODELO CORRECTO para Odoo 13+/17/19
       let templateId = null
       const templateName = kitIdToTemplateName(kit_id)
       if (templateName) {
-        const tplRaw = await rpc('sale.quote.template', 'search', [[['name', '=', templateName]]])
-        const tplMatch = tplRaw.match(/<data>[\s\S]*?<value><int>(\d+)<\/int><\/value>/)
-        if (tplMatch) templateId = parseInt(tplMatch[1])
+        const tplRaw = await rpc('sale.order.template', 'search', [[['name', '=', templateName]]])
+        templateId = extractInt(tplRaw)
       }
+      console.log('[odoo] templateName:', templateName, '-> templateId:', templateId)
 
-      // Crear cotización con plantilla — Odoo aplica las líneas automáticamente
+      // Crear la orden
       const orderData = { partner_id: partnerId }
       if (templateId) {
         orderData.sale_order_template_id = templateId
       } else {
-        orderData.order_line = lineas.map(l => [0, 0, {
+        orderData.order_line = (lineas || []).map(l => [0, 0, {
           name: l.descripcion,
           product_uom_qty: l.cantidad,
           price_unit: l.precio
@@ -158,16 +187,60 @@ export async function handler(event) {
       }
 
       const saleRaw = await rpc('sale.order', 'create', [orderData])
+      const fault = extractFault(saleRaw)
+      if (fault) {
+        console.error('[odoo] create fault:', fault)
+        return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: fault }) }
+      }
       const saleId = extractInt(saleRaw)
+      if (!saleId) {
+        console.error('[odoo] sin saleId. raw:', norm(saleRaw).slice(0, 400))
+        return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: 'No se pudo crear la orden', raw: norm(saleRaw).slice(0, 400) }) }
+      }
+      console.log('[odoo] saleId:', saleId)
 
-      // Obtener número real de cotización
+      // Self-heal: si se usó plantilla pero la orden quedó sin líneas
+      // (el onchange que copia las líneas no siempre dispara en un create por XML-RPC en v17/19),
+      // se leen las líneas de la plantilla y se aplican. Solo actúa si quedó en 0, no duplica.
+      if (templateId) {
+        const olRaw = await rpc('sale.order', 'read', [[saleId]], { fields: ['order_line'] })
+        const olMatch = norm(olRaw).match(/<name>order_line<\/name><value><array><data>([\s\S]*?)<\/data><\/array>/)
+        const lineCount = olMatch ? (olMatch[1].match(/<int>/g) || []).length : 0
+        console.log('[odoo] lineCount tras create:', lineCount)
+
+        if (lineCount === 0) {
+          const tplLinesRaw = await rpc('sale.order.template.line', 'search_read',
+            [[['sale_order_template_id', '=', templateId]]],
+            { fields: ['product_id', 'product_uom_qty', 'name', 'display_type'] }
+          )
+          const tplLines = parseTemplateLines(tplLinesRaw)
+          const orderLines = tplLines.map(l => {
+            if (l.display_type) return [0, 0, { display_type: l.display_type, name: l.name }]
+            const v = { product_uom_qty: l.qty || 1 }
+            if (l.product_id) v.product_id = l.product_id
+            if (l.name) v.name = l.name
+            return [0, 0, v]
+          })
+          if (orderLines.length) {
+            const wFault = extractFault(await rpc('sale.order', 'write', [[saleId], { order_line: orderLines }]))
+            if (wFault) console.error('[odoo] write líneas fault:', wFault)
+            else console.log('[odoo] líneas aplicadas desde plantilla:', orderLines.length)
+          } else {
+            console.warn('[odoo] la plantilla no devolvió líneas')
+          }
+        }
+      }
+
+      // Número real de la cotización
+      // FIX: el regex /S\d+/ no tiene grupo de captura, así que se usa match[0], no match[1]
       const numRaw = await rpc('sale.order', 'read', [[saleId]], { fields: ['name'] })
-      const numMatch = numRaw.match(/S\d+/)
-      const nombre = numMatch ? numMatch[1] : `S${saleId}`
+      const numMatch = norm(numRaw).match(/S\d+/)
+      const nombre = numMatch ? numMatch[0] : `S${saleId}`
+      console.log('[odoo] nombre:', nombre)
 
       return {
         statusCode: 200,
-        headers: { 'Access-Control-Allow-Origin': '*' },
+        headers: CORS,
         body: JSON.stringify({
           id: saleId,
           nombre,
@@ -177,13 +250,10 @@ export async function handler(event) {
       }
     }
 
-    return { statusCode: 400, body: JSON.stringify({ error: 'Unknown action' }) }
+    return { statusCode: 400, headers: CORS, body: JSON.stringify({ error: 'Unknown action' }) }
 
   } catch (err) {
-    return {
-      statusCode: 500,
-      headers: { 'Access-Control-Allow-Origin': '*' },
-      body: JSON.stringify({ error: err.message })
-    }
+    console.error('[odoo] error:', err)
+    return { statusCode: 500, headers: CORS, body: JSON.stringify({ error: err.message }) }
   }
 }
