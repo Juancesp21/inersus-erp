@@ -122,6 +122,20 @@ export async function handler(event) {
       return await res.text()
     }
 
+    // Busca el id del IVA 16% de ventas para aplicarlo a líneas manuales
+    async function getIvaTaxId() {
+      const raw = await rpc('account.tax', 'search',
+        [[['type_tax_use', '=', 'sale'], ['amount', '=', 16]]], { limit: 1 })
+      return extractInt(raw)
+    }
+
+    // Busca un producto real de Odoo por su Referencia interna (default_code)
+    async function findProductByRef(ref) {
+      if (!ref) return null
+      const raw = await rpc('product.product', 'search', [[['default_code', '=', ref]]], { limit: 1 })
+      return extractInt(raw)
+    }
+
     // BUSCAR CLIENTES
     if (action === 'search_partners') {
       const raw = await rpc('res.partner', 'search_read',
@@ -146,7 +160,7 @@ export async function handler(event) {
 
     // CREAR COTIZACIÓN
     if (action === 'create_quotation') {
-      const { cliente_id, cliente_nombre, kit_id, lineas } = payload
+      const { cliente_id, cliente_nombre, kit_id, lineas, extras_lineas } = payload
       let partnerId = cliente_id
 
       // Buscar o crear cliente
@@ -174,16 +188,23 @@ export async function handler(event) {
       }
       console.log('[odoo] templateName:', templateName, '-> templateId:', templateId)
 
+      // IVA 16% para líneas manuales (accesorios y fallback sin plantilla)
+      const ivaTaxId = await getIvaTaxId()
+      console.log('[odoo] ivaTaxId:', ivaTaxId)
+
+      // Helper: línea de texto libre (fallback sin plantilla)
+      const toOrderLine = (l) => {
+        const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
+        if (ivaTaxId) v.tax_id = [[6, 0, [ivaTaxId]]]
+        return [0, 0, v]
+      }
+
       // Crear la orden
       const orderData = { partner_id: partnerId }
       if (templateId) {
         orderData.sale_order_template_id = templateId
       } else {
-        orderData.order_line = (lineas || []).map(l => [0, 0, {
-          name: l.descripcion,
-          product_uom_qty: l.cantidad,
-          price_unit: l.precio
-        }])
+        orderData.order_line = (lineas || []).map(toOrderLine)
       }
 
       const saleRaw = await rpc('sale.order', 'create', [orderData])
@@ -229,6 +250,27 @@ export async function handler(event) {
             console.warn('[odoo] la plantilla no devolvió líneas')
           }
         }
+      }
+
+      // Agregar accesorios (cable, tubería, bases, adaptador, válvula) encima del kit.
+      // Si el accesorio trae 'ref', se busca el producto real de Odoo y se liga (mejor para CFDI).
+      // Si no se encuentra, queda como línea de texto con el precio. No duplica el kit.
+      if (templateId && Array.isArray(extras_lineas) && extras_lineas.length) {
+        const extraOrderLines = []
+        for (const l of extras_lineas) {
+          let pid = null
+          if (l.ref) {
+            pid = await findProductByRef(l.ref)
+            console.log('[odoo] accesorio ref', l.ref, '-> productId', pid)
+          }
+          const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
+          if (pid) v.product_id = pid
+          if (ivaTaxId) v.tax_id = [[6, 0, [ivaTaxId]]]
+          extraOrderLines.push([0, 0, v])
+        }
+        const exFault = extractFault(await rpc('sale.order', 'write', [[saleId], { order_line: extraOrderLines }]))
+        if (exFault) console.error('[odoo] write accesorios fault:', exFault)
+        else console.log('[odoo] accesorios agregados:', extraOrderLines.length)
       }
 
       // Número real de la cotización
