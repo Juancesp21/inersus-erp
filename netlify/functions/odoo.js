@@ -163,6 +163,11 @@ export async function handler(event) {
       const { cliente_id, cliente_nombre, kit_id, lineas, extras_lineas } = payload
       let partnerId = cliente_id
 
+      // Diagnóstico: ver exactamente qué manda el ERP
+      console.log('[odoo] DIAG extras_lineas count:', Array.isArray(extras_lineas) ? extras_lineas.length : 'no es array')
+      console.log('[odoo] DIAG extras_lineas:', JSON.stringify(extras_lineas || null))
+      console.log('[odoo] DIAG lineas count:', Array.isArray(lineas) ? lineas.length : 'no es array')
+
       // Buscar o crear cliente
       if (!partnerId) {
         const foundRaw = await rpc('res.partner', 'search', [[['name', '=', cliente_nombre]]])
@@ -271,6 +276,8 @@ export async function handler(event) {
         const exFault = extractFault(await rpc('sale.order', 'write', [[saleId], { order_line: extraOrderLines }]))
         if (exFault) console.error('[odoo] write accesorios fault:', exFault)
         else console.log('[odoo] accesorios agregados:', extraOrderLines.length)
+      } else {
+        console.log('[odoo] NO se agregaron accesorios. templateId:', templateId, '- extras count:', Array.isArray(extras_lineas) ? extras_lineas.length : 'no array')
       }
 
       // Número real de la cotización
