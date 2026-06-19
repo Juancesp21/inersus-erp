@@ -97,9 +97,12 @@
     </div>
 
     <!-- ODOO RESULT -->
-    <div class="odoo-result" v-if="odooResult">
+    <div class="odoo-result" v-if="odooResult && !odooResult.error">
       <span>✓ Cotización creada en Odoo:</span>
       <a :href="odooResult.url" target="_blank" class="odoo-link">{{ odooResult.nombre }}</a>
+    </div>
+    <div class="odoo-error" v-if="odooResult && odooResult.error">
+      <span>⚠ {{ odooResult.error }}</span>
     </div>
 
     <div class="kactions">
@@ -292,6 +295,16 @@ function descargarPDF() {
   font-weight: 700;
   color: #1a7a4a;
   text-decoration: underline;
+}
+
+.odoo-error {
+  margin: 0 1.25rem .5rem;
+  padding: 8px 12px;
+  background: #fef2f2;
+  border-radius: 6px;
+  font-size: 12px;
+  color: #b91c1c;
+  font-weight: 600;
 }
 
 @media (max-width: 768px) {
