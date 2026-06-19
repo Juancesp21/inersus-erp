@@ -139,6 +139,23 @@ const resumen = computed(() => {
   return `Considerando ${nd}m de profundidad, ${tirada}m de tirada horizontal con ${dt}m de desnivel, el equipo ${props.kit.id} puede entregar aproximadamente ${c.lpm} litros por minuto a descarga libre, igual a ${c.lph.toLocaleString('es-MX')} litros por hora o ${c.lpd.toLocaleString('es-MX')} litros por día.`
 })
 
+// Referencia interna en Odoo de la válvula check según diámetro
+function refValvula(diam) {
+  if (diam === '2') return '80DI2'
+  if (diam === '1.25') return '80DI11/4'
+  return null
+}
+
+// Referencia interna en Odoo del adaptador según material, diámetro y serie
+function refAdaptador(mat, diam, serie) {
+  if (diam === '1.25') return mat === 'acero' ? 'KA150/250-1.25"' : 'KAH150/250-1.25"'
+  if (diam === '2') {
+    if (mat === 'acero') return serie === '250' ? 'KA250-2"' : 'KA150-2"'
+    return 'KAH150-2"' // hierro 2" solo existe en serie 150
+  }
+  return null
+}
+
 async function copiar() {
   await navigator.clipboard.writeText(resumen.value)
   copied.value = true
@@ -149,19 +166,60 @@ async function enviarOdoo() {
   enviandoOdoo.value = true
   odooResult.value = null
   try {
-    const lineas = [
-      {
-        descripcion: `${props.kit.name} — Sistema de bombeo solar`,
-        cantidad: 1,
-        precio: props.kit.precio / 1.16
-      }
-    ]
+    // Línea del kit (precio sin IVA; Odoo la trae de la plantilla)
+    const kitLinea = {
+      descripcion: `${props.kit.name} — Sistema de bombeo solar`,
+      cantidad: 1,
+      precio: props.kit.precio / 1.16
+    }
+
+    // Accesorios aparte, con su referencia de Odoo cuando se conoce.
+    // Precios sin IVA (la función agrega el IVA 16%).
+    const extrasLineas = []
     const e = props.extras
-    if (e?.costoCable > 0) lineas.push({ descripcion: `Cable sumergible ${e.ctipo} × ${e.cmts}m`, cantidad: 1, precio: e.costoCable / 1.16 })
-    if (e?.costoTuberia > 0) lineas.push({ descripcion: `Tubería ${e.diametro}" Serie ${e.tuberiaSerie} × ${e.tuberiaTramos} tramos`, cantidad: 1, precio: e.costoTuberia / 1.16 })
-    if (e?.costoAdaptador > 0) lineas.push({ descripcion: `Adaptador ${e.adaptador} ${e.diametro}"`, cantidad: 1, precio: e.costoAdaptador / 1.16 })
-    if (e?.costoValvula > 0) lineas.push({ descripcion: `Válvula check ${e.diametro}"`, cantidad: 1, precio: e.costoValvula / 1.16 })
-    if (e?.bases > 0) lineas.push({ descripcion: 'Bases inclinadas', cantidad: 1, precio: e.bases / 1.16 })
+    if (e?.costoCable > 0) {
+      extrasLineas.push({
+        ref: e.ctipo, // CABLE3X12A / CABLE3X10A / CABLE3X8A
+        descripcion: `Cable sumergible ${e.ctipo} × ${e.cmts}m`,
+        cantidad: e.cmts, // se vende por metro
+        precio: (e.costoCable / 1.16) / e.cmts
+      })
+    }
+    if (e?.costoTuberia > 0) {
+      extrasLineas.push({
+        ref: `TUBOA${e.tuberiaSerie} ${e.diametro}"`, // ej: TUBOA150 2"
+        descripcion: `Tubería columna ${e.diametro}" serie ${e.tuberiaSerie} × ${e.tuberiaTramos} tramos`,
+        cantidad: e.tuberiaTramos, // se vende por tramo
+        precio: (e.costoTuberia / 1.16) / e.tuberiaTramos
+      })
+    }
+    if (e?.costoAdaptador > 0) {
+      extrasLineas.push({
+        ref: refAdaptador(e.adaptador, e.diametro, e.tuberiaSerie),
+        descripcion: `Adaptador ${e.adaptador} ${e.diametro}"`,
+        cantidad: 1,
+        precio: e.costoAdaptador / 1.16
+      })
+    }
+    if (e?.costoValvula > 0) {
+      extrasLineas.push({
+        ref: refValvula(e.diametro),
+        descripcion: `Válvula check ${e.diametro}"`,
+        cantidad: 1,
+        precio: e.costoValvula / 1.16
+      })
+    }
+    if (e?.bases > 0) {
+      extrasLineas.push({
+        ref: 'RAINADIC2', // Soporte adicional ($1,250)
+        descripcion: 'Bases inclinadas',
+        cantidad: 1,
+        precio: e.bases / 1.16
+      })
+    }
+
+    // lineas = kit + extras (se usa solo en el fallback sin plantilla)
+    const lineas = [kitLinea, ...extrasLineas]
 
     const res = await fetch('/.netlify/functions/odoo', {
       method: 'POST',
@@ -172,7 +230,8 @@ async function enviarOdoo() {
           cliente_id: props.params.clienteId || null,
           cliente_nombre: props.params.cliente || 'A quien corresponda',
           kit_id: props.kit.id || '',
-          lineas
+          lineas,
+          extras_lineas: extrasLineas
         }
       })
     })
