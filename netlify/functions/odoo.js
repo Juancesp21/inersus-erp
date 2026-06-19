@@ -193,26 +193,49 @@ export async function handler(event) {
       }
       console.log('[odoo] templateName:', templateName, '-> templateId:', templateId)
 
-      // IVA 16% para líneas manuales (accesorios y fallback sin plantilla)
-      const ivaTaxId = await getIvaTaxId()
-      console.log('[odoo] ivaTaxId:', ivaTaxId)
-
-      // Helper: línea de texto libre (fallback sin plantilla)
-      const toOrderLine = (l) => {
-        const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
-        if (ivaTaxId) v.tax_ids = [[6, 0, [ivaTaxId]]]
-        return [0, 0, v]
+      // OPCIÓN A: todos los accesorios deben existir en Odoo. Se validan ANTES de crear nada.
+      // Si falta uno, no se crea la cotización y se devuelve el nombre exacto que falta.
+      const resolvedExtras = []
+      if (Array.isArray(extras_lineas) && extras_lineas.length) {
+        const faltantes = []
+        for (const l of extras_lineas) {
+          if (!l.ref) {
+            faltantes.push(l.descripcion || '(accesorio sin referencia)')
+            continue
+          }
+          const pid = await findProductByRef(l.ref)
+          console.log('[odoo] accesorio ref', l.ref, '-> productId', pid)
+          if (!pid) {
+            faltantes.push(l.ref)
+            continue
+          }
+          resolvedExtras.push({ product_id: pid, cantidad: l.cantidad })
+        }
+        if (faltantes.length) {
+          console.error('[odoo] productos no encontrados en Odoo:', faltantes.join(', '))
+          return {
+            statusCode: 422,
+            headers: CORS,
+            body: JSON.stringify({
+              error: 'No se creó la cotización. Estos productos no existen en Odoo: ' + faltantes.join(', '),
+              faltantes
+            })
+          }
+        }
       }
 
-      // Crear la orden
-      const orderData = { partner_id: partnerId }
-      if (templateId) {
-        orderData.sale_order_template_id = templateId
-      } else {
-        orderData.order_line = (lineas || []).map(toOrderLine)
+      // Sin plantilla = el kit no existe en Odoo. Opción A: no inventamos, avisamos.
+      if (!templateId) {
+        console.error('[odoo] plantilla no encontrada para', kit_id)
+        return {
+          statusCode: 422,
+          headers: CORS,
+          body: JSON.stringify({ error: 'No se creó la cotización. La plantilla del kit no existe en Odoo: ' + (templateName || kit_id) })
+        }
       }
 
-      const saleRaw = await rpc('sale.order', 'create', [orderData])
+      // Crear la orden con la plantilla
+      const saleRaw = await rpc('sale.order', 'create', [{ partner_id: partnerId, sale_order_template_id: templateId }])
       const fault = extractFault(saleRaw)
       if (fault) {
         console.error('[odoo] create fault:', fault)
@@ -257,27 +280,16 @@ export async function handler(event) {
         }
       }
 
-      // Agregar accesorios (cable, tubería, bases, adaptador, válvula) encima del kit.
-      // Si el accesorio trae 'ref', se busca el producto real de Odoo y se liga (mejor para CFDI).
-      // Si no se encuentra, queda como línea de texto con el precio. No duplica el kit.
-      if (templateId && Array.isArray(extras_lineas) && extras_lineas.length) {
-        const extraOrderLines = []
-        for (const l of extras_lineas) {
-          let pid = null
-          if (l.ref) {
-            pid = await findProductByRef(l.ref)
-            console.log('[odoo] accesorio ref', l.ref, '-> productId', pid)
-          }
-          const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
-          if (pid) v.product_id = pid
-          if (ivaTaxId) v.tax_ids = [[6, 0, [ivaTaxId]]]
-          extraOrderLines.push([0, 0, v])
-        }
+      // Agregar accesorios ya validados contra Odoo. Todos traen product_id y usan
+      // el precio de catálogo de Odoo y su impuesto. La cantidad la define el ERP.
+      if (resolvedExtras.length) {
+        const extraOrderLines = resolvedExtras.map(e => [0, 0, {
+          product_id: e.product_id,
+          product_uom_qty: e.cantidad
+        }])
         const exFault = extractFault(await rpc('sale.order', 'write', [[saleId], { order_line: extraOrderLines }]))
         if (exFault) console.error('[odoo] write accesorios fault:', exFault)
         else console.log('[odoo] accesorios agregados:', extraOrderLines.length)
-      } else {
-        console.log('[odoo] NO se agregaron accesorios. templateId:', templateId, '- extras count:', Array.isArray(extras_lineas) ? extras_lineas.length : 'no array')
       }
 
       // Número real de la cotización
