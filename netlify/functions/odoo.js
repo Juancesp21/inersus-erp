@@ -200,7 +200,7 @@ export async function handler(event) {
       // Helper: línea de texto libre (fallback sin plantilla)
       const toOrderLine = (l) => {
         const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
-        if (ivaTaxId) v.tax_id = [[6, 0, [ivaTaxId]]]
+        if (ivaTaxId) v.tax_ids = [[6, 0, [ivaTaxId]]]
         return [0, 0, v]
       }
 
@@ -270,7 +270,7 @@ export async function handler(event) {
           }
           const v = { name: l.descripcion, product_uom_qty: l.cantidad, price_unit: l.precio }
           if (pid) v.product_id = pid
-          if (ivaTaxId) v.tax_id = [[6, 0, [ivaTaxId]]]
+          if (ivaTaxId) v.tax_ids = [[6, 0, [ivaTaxId]]]
           extraOrderLines.push([0, 0, v])
         }
         const exFault = extractFault(await rpc('sale.order', 'write', [[saleId], { order_line: extraOrderLines }]))
